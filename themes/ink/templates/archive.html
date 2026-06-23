@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Archive · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="archive">
+  <header class="archive-header"><h1>Archive</h1></header>
+  {% for group in archive.years %}
+  <section class="archive-year">
+    <h2 class="archive-year-title">{{ group.year }}</h2>
+    <ul class="post-list">
+      {% for p in group.pages %}
+      <li>
+        <a class="post-list-title" href="{{ p.url | safe }}">{{ p.title }}</a>
+        {% if p.date %}<time class="post-list-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</section>
+{% endblock %}

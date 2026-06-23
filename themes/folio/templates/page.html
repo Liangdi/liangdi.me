@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} · {{ config.title }}{% endblock %}
+{% block content %}
+<article class="project">
+  <header class="project-header">
+    <h1 class="project-title">{{ page.title }}</h1>
+    {% if page.date %}<time class="project-date" datetime="{{ page.date }}">{{ page.date }}</time>{% endif %}
+    {% if page.author %}
+    {% set a = author(page.author) %}
+    <p class="post-author">by {% if a %}<a href="{{ a.url | safe }}">{{ a.name }}</a>{% else %}{{ page.author }}{% endif %}</p>
+    {% endif %}
+    {% if page.taxonomies and page.taxonomies.tags %}
+    <ul class="project-tags">
+      {% for tag in page.taxonomies.tags %}
+      <li><a href="/tags/{{ tag | safe }}/">#{{ tag }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </header>
+  {% if page.cover %}
+  <p class="project-cover"><img src="{{ page.cover.url | safe }}"{% if page.cover.srcset %} srcset="{{ page.cover.srcset | safe }}"{% endif %} alt="{{ page.title }}" loading="lazy"></p>
+  {% endif %}
+  {% if page.toc %}
+  <nav class="toc" aria-label="Contents">
+    {% for item in page.toc %}
+    <div class="toc-level-{{ item.level }}" style="padding-left: {{ item.level - 2 }}rem"><a href="#{{ item.id | safe }}">{{ item.text }}</a></div>
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="project-body">
+    {{ page.content | safe }}
+  </div>
+</article>
+<nav class="post-nav">
+  {% if page.older %}<a class="post-nav-prev" href="{{ page.older.url | safe }}"><span class="post-nav-dir">← Older</span><span class="post-nav-title">{{ page.older.title }}</span></a>{% else %}<span></span>{% endif %}
+  {% if page.newer %}<a class="post-nav-next" href="{{ page.newer.url | safe }}"><span class="post-nav-dir">Newer →</span><span class="post-nav-title">{{ page.newer.title }}</span></a>{% endif %}
+</nav>
+{% endblock %}

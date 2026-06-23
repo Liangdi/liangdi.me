@@ -1,0 +1,438 @@
+@use "tokens";
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 3px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ----- Layout shell ----------------------------------------------------------
+.site-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: calc(var(--space) * 2.4) var(--space) calc(var(--space) * 1.2);
+}
+.site-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--fg);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.site-nav {
+  display: flex;
+  gap: 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  a {
+    color: var(--muted);
+
+    &:hover {
+      color: var(--fg);
+      text-decoration: none;
+    }
+  }
+  .lang-switch a {
+    margin-left: 0.4rem;
+  }
+}
+
+.content {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--space) calc(var(--space) * 2);
+  min-height: 60vh;
+}
+
+.site-footer {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+// ----- Display titles --------------------------------------------------------
+.display-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: calc(clamp(2.4rem, 7vw, 4.5rem) * var(--font-scale));
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-transform: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+// ----- Landing / home --------------------------------------------------------
+.landing-hero {
+  padding: calc(var(--space) * 1.5) 0 calc(var(--space) * 2.4);
+}
+.landing-lede {
+  margin-top: calc(var(--space) * 1.1);
+  max-width: 38rem;
+  font-size: 1.15rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.gallery-heading {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 1.2rem;
+}
+
+// ----- Gallery grid (index / section / taxonomy term) ------------------------
+.gallery-section-header {
+  padding: calc(var(--space) * 1.5) 0 calc(var(--space) * 2);
+}
+.gallery-intro {
+  margin-top: 1rem;
+  max-width: 38rem;
+  color: var(--muted);
+}
+.gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.card {
+  background: var(--bg);
+  margin: 0;
+}
+.card-link {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 14rem;
+  height: 100%;
+  padding: 1.6rem 1.4rem;
+  color: var(--fg);
+  position: relative;
+  transition: background 0.15s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 1.4rem;
+    top: 1.6rem;
+    width: 2rem;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  &:hover {
+    background: var(--accent-weak);
+    text-decoration: none;
+
+    &::before {
+      opacity: 1;
+    }
+    .card-title {
+      color: var(--accent);
+    }
+  }
+}
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.card-date {
+  margin-top: 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card-desc {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 48rem) {
+  .gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// ----- Project (page) --------------------------------------------------------
+.project-header {
+  padding: calc(var(--space) * 2) 0 calc(var(--space) * 1.2);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: calc(var(--space) * 1.4);
+}
+.project-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: calc(clamp(2.2rem, 6vw, 3.8rem) * var(--font-scale));
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.project-date {
+  display: block;
+  margin-top: 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.project-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+
+  a {
+    color: var(--accent);
+    background: var(--accent-weak);
+    padding: 0.15rem 0.6rem;
+    border-radius: 2px;
+  }
+}
+.project-body {
+  max-width: 44rem;
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    margin: 2.4rem 0 0.8rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    font-size: 1.2rem;
+    margin: 1.8rem 0 0.5rem;
+  }
+  p {
+    margin: 0 0 1.1rem;
+  }
+  ul,
+  ol {
+    margin: 0 0 1.1rem;
+    padding-left: 1.4rem;
+  }
+  blockquote {
+    margin: 1.4rem 0;
+    padding: 0.2rem 0 0 1.1rem;
+    border-left: 3px solid var(--accent);
+    color: var(--muted);
+    font-style: italic;
+  }
+  img {
+    border-radius: 2px;
+  }
+}
+
+// Code: self-contained minimal styling (does not depend on a highlight.css).
+pre,
+code {
+  font-family: var(--font-mono);
+}
+code {
+  background: var(--code-bg);
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.9em;
+}
+pre {
+  background: var(--code-bg);
+  padding: 1rem 1.1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  line-height: 1.5;
+
+  code {
+    background: none;
+    padding: 0;
+    font-size: 0.88rem;
+  }
+}
+
+// ----- Taxonomy index --------------------------------------------------------
+.taxonomy-header,
+.taxonomy-term-header {
+  padding: calc(var(--space) * 1.5) 0 var(--space);
+}
+.term-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    background: var(--code-bg);
+    padding: 0.35rem 0.75rem;
+    border-radius: 2px;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+  }
+  .term-count {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+}
+
+// Prev/next page navigation (page.older / page.newer from the engine).
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+
+  a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    max-width: 45%;
+    text-decoration: none;
+  }
+  .post-nav-next {
+    margin-left: auto;
+    text-align: right;
+  }
+  .post-nav-dir {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .post-nav-title {
+    color: var(--accent);
+    font-weight: 600;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Author byline + profile / archive / authors-listing pages.
+// ---------------------------------------------------------------------------
+
+.post-author { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.post-author a { color: var(--accent); }
+
+.author-header { display: flex; gap: 1.25rem; align-items: center; margin-bottom: 1.5rem; }
+.author-avatar { width: 4rem; height: 4rem; border-radius: 50%; object-fit: cover; }
+.author-meta h1 { margin: 0; }
+.author-role { margin: 0.15rem 0 0; color: var(--muted); }
+.author-social { display: flex; gap: 0.9rem; margin: 0.4rem 0 0; font-size: 0.9rem; }
+.author-bio { margin-bottom: 2rem; }
+.author-posts { margin-bottom: 2rem; }
+.author-posts h2 { margin-bottom: 0.75rem; }
+
+.archive-header { margin-bottom: 1.5rem; }
+.archive-year { margin-bottom: 1.75rem; }
+.archive-year-title { font-size: 1.15rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+.authors-header { margin-bottom: 1.5rem; }
+.authors-intro { margin-bottom: 1.5rem; color: var(--muted); }
+.authors-grid {
+  list-style: none; padding: 0;
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+}
+.author-card a {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  padding: 1rem; border: 1px solid var(--rule); border-radius: 6px;
+}
+.author-card a:hover { text-decoration: none; border-color: var(--accent); }
+.author-card-avatar { width: 3rem; height: 3rem; border-radius: 50%; object-fit: cover; }
+.author-card-name { color: var(--fg); font-weight: 600; }
+
+// Cover images (front-matter `cover` field).
+.card-cover {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius, 0.5rem);
+  margin-bottom: 0.5rem;
+}
+.project-cover {
+  margin: 0 0 1.5rem;
+  img {
+    width: 100%;
+    max-height: 28rem;
+    object-fit: cover;
+    border-radius: var(--radius, 0.5rem);
+  }
+}
+
+// Search page (content/search.md, template = "search.html").
+.search-section { margin-top: 1.5rem; }
+.search-input {
+  width: 100%; padding: 0.7rem 0.9rem;
+  border: 1px solid var(--rule, #ddd); border-radius: var(--radius, 0.5rem);
+  font: inherit; margin: 1rem 0;
+}
+.search-input:focus { outline: none; border-color: var(--accent); }
+.search-results { list-style: none; padding: 0; }
+.search-results li { padding: 0.5rem 0; border-bottom: 1px solid var(--rule, #eee); }
+.search-results a { color: var(--accent); font-weight: 600; }
+
+// Paginator (section.html when `paginate_by` is set).
+.paginator { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 2rem; }
+.paginator-prev, .paginator-next { color: var(--accent); font-weight: 600; }
+.paginator-disabled { color: var(--muted, #999); }
+
+// Table of contents (page.html, from page.toc).
+.toc { margin: 0 0 1.5rem; padding: 0.75rem 1rem; border-left: 3px solid var(--accent); background: var(--rule, #f5f5f5); font-size: 0.92rem; }
+.toc a { color: inherit; }
+.toc a:hover { color: var(--accent); }

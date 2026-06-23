@@ -1,0 +1,33 @@
+{# Author line. Works in two contexts: the single-page template (current var
+   is `page`) and the summary cards (current var is `p`). Prefer per-page
+   author/avatar from `extra`, fall back to the site defaults. #}
+{% set e = page.extra if page else p.extra if p else {} %}
+{% set author_name = e.author if e.author else config.params.author %}
+{% set avatar = e.avatar if e.avatar else config.params.avatar %}
+{% set authorlink = e.authorlink if e.authorlink else none %}
+
+<div class="flex items-center">
+  {% if avatar %}
+  <div class="avatar mr-1">
+    <div class="w-8 rounded-full">
+      <img class="my-0" src="{{ avatar | safe }}" alt="{{ author_name }}" />
+    </div>
+  </div>
+  {% else %}
+  <span>@</span>
+  {% endif %}
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    {% if author_name %}
+      {% if authorlink %}
+      <a itemprop="url" href="{{ authorlink | safe }}" target="_blank">
+        <span itemprop="name">{{ author_name }}</span>
+      </a>
+      {% else %}
+      <span itemprop="name">{{ author_name }}</span>
+      {% endif %}
+    {% else %}
+    <span itemprop="name">{{ config.params.author }}</span>
+    {% endif %}
+  </span>
+</div>

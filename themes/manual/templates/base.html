@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="{{ config.default_language }}"
+      {% if config.params.dark == "on" %}data-theme="dark"
+      {% elif config.params.dark == "off" %}data-theme="light"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.title }}{% endblock %}</title>
+  <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/highlight.css">
+  {# Design tokens from site params; emitted AFTER main.css so they override
+     the theme's defaults. See theme README for the full param list. #}
+  <style>
+    :root{
+      --accent: {{ config.params.accent | default("#2563eb") }};
+      --font-scale: {{ config.params.font_scale | default("1.0") }};
+      --content-width: {% if config.params.width == "wide" %}56rem{% else %}48rem{% endif %};
+    }
+  </style>
+  {% if config.base_url %}
+  {# hreflang alternates for the current page + its translations. #}
+  {% if page %}
+  <link rel="alternate" hreflang="{{ page.lang }}" href="{{ config.base_url | safe }}{{ page.url | safe }}">
+  {% for t in page.translations %}
+  <link rel="alternate" hreflang="{{ t.lang }}" href="{{ config.base_url | safe }}{{ t.url | safe }}">
+  {% endfor %}
+  <link rel="alternate" hreflang="x-default" href="{{ config.base_url | safe }}{{ page.url | safe }}">
+  {% elif section %}
+  <link rel="alternate" hreflang="{{ section.lang }}" href="{{ config.base_url | safe }}{{ section.url | safe }}">
+  {% for t in section.translations %}
+  <link rel="alternate" hreflang="{{ t.lang }}" href="{{ config.base_url | safe }}{{ t.url | safe }}">
+  {% endfor %}
+  {% endif %}
+  {% endif %}
+  {{ seo_head | safe }}
+  {{ head_inject | safe }}
+  {% block styles %}{% endblock %}
+</head>
+<body class="manual-docs">
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="site-title" href="/">{{ config.title }}</a>
+      <nav class="site-nav">
+        {% set menu = config.menu[config.default_language] %}
+        {% if menu %}
+        {% for item in menu %}<a href="{{ item.url | safe }}">{{ item.label }}</a>
+        {% endfor %}
+        {% else %}
+        <a href="/">Docs</a>
+        <a href="/archive/">Archive</a>
+        <a href="/tags/">Tags</a>
+        {% endif %}
+        {% if page and page.translations %}
+        <span class="lang-switch">
+          {%- for t in page.translations -%}
+          <a href="{{ t.url | safe }}">{{ t.lang }}</a>
+          {%- endfor -%}
+        </span>
+        {% elif section and section.translations %}
+        <span class="lang-switch">
+          {%- for t in section.translations -%}
+          <a href="{{ t.url | safe }}">{{ t.lang }}</a>
+          {%- endfor -%}
+        </span>
+        {% endif %}
+      </nav>
+      <div class="search">
+        <input id="search" type="search" placeholder="Search…" autocomplete="off" aria-label="Search docs">
+        <ul id="search-results" role="listbox" aria-label="Search results"></ul>
+      </div>
+    </div>
+  </header>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; {{ config.title }}</p>
+  </footer>
+
+  <script>
+  (function () {
+    var box = document.getElementById('search');
+    var out = document.getElementById('search-results');
+    if (!box || !out) return;
+    var cache = null;
+    function load(fn) {
+      if (cache) return fn(cache);
+      fetch('/search.json').then(function (r) { return r.json(); }).then(function (d) {
+        cache = d || []; fn(cache);
+      }).catch(function () { cache = []; fn(cache); });
+    }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+    function render(q, docs) {
+      if (!q) { hide(); return; }
+      var ql = q.toLowerCase();
+      var hits = [];
+      for (var i = 0; i < docs.length && hits.length < 8; i++) {
+        var d = docs[i];
+        var hay = (d.title + ' ' + (d.body || '') + ' ' + (d.excerpt || '')).toLowerCase();
+        if (hay.indexOf(ql) !== -1) hits.push(d);
+      }
+      out.innerHTML = '';
+      if (!hits.length) {
+        out.innerHTML = '<li class="search-empty">No matches</li>';
+      } else {
+        for (var j = 0; j < hits.length; j++) {
+          var h = hits[j];
+          var li = document.createElement('li');
+          li.innerHTML =
+            '<a href="' + esc(h.url) + '">' +
+              '<span class="search-title">' + esc(h.title) + '</span>' +
+              (h.excerpt ? '<span class="search-excerpt">' + esc(h.excerpt) + '</span>' : '') +
+            '</a>';
+          out.appendChild(li);
+        }
+      }
+      out.style.display = 'block';
+    }
+    function show() { load(function (d) { if (box.value) render(box.value, d); else out.style.display = 'block'; }); }
+    function hide() { out.style.display = 'none'; }
+    box.addEventListener('input', function () { if (!box.value) { hide(); return; } load(function (d) { render(box.value, d); }); });
+    box.addEventListener('focus', show);
+    document.addEventListener('click', function (e) { if (!box.contains(e.target) && !out.contains(e.target)) hide(); });
+    box.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hide(); box.blur(); } });
+  })();
+  </script>
+
+  {{ body_inject | safe }}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

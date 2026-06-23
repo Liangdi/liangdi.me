@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="{{ config.default_language }}"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ config.title }}{% endblock %} | {{ config.title }}</title>
+
+  {% include "partials/head.html" %}
+
+  {# Plugin/SEO injection seams — emitted in base.html so the host check passes
+     and plugins can inject into <head>/<body>. #}
+  {{ seo_head | safe }}
+  {{ head_inject | safe }}
+
+  {% block css %}{% endblock %}
+
+  {% for css in config.params.customCSS %}
+  <link rel="stylesheet" href="{{ css | safe }}" />
+  {% endfor %}
+
+  {# Alpine.js — powers the dark-mode store, flip card, and sticky nav. #}
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  {# Optional background image (params.backgroundImage). #}
+  <div id="dream-global-bg"></div>
+
+  {% include "partials/nav.html" %}
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          {% block main %}{% endblock %}
+
+          <footer class="{% if config.params.zenMode == 'true' %}flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12{% else %}flex justify-between items-center gap-2 px-4 py-12{% endif %}">
+            {% include "partials/footerLeft.html" %}
+            {% include "partials/footerRight.html" %}
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          {% if config.params.zenMode == 'true' %}
+          {% include "partials/zen-back.html" %}
+          {% else %}
+          {% include "partials/back.html" %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "partials/scripts.html" %}
+  {% block js %}{% endblock %}
+
+  {# Mermaid — dream tracks `.mermaid` blocks via a Store flag; anycms has none,
+     so we load unconditionally (harmless when no diagrams are present). #}
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  {% for js in config.params.customJS %}
+  <script src="{{ js | safe }}"></script>
+  {% endfor %}
+
+  {# ionicons — used throughout dream's markup. #}
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  {{ body_inject | safe }}
+</body>
+</html>

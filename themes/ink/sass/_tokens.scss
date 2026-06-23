@@ -1,0 +1,68 @@
+// Design tokens for `ink`. Site-tunable values (--accent / --font-scale /
+// --content-width) are injected inline by base.html from `config.params` and
+// override these defaults; the tokens here are the theme's own baseline.
+
+:root {
+  // Surfaces & text (warm "ink on paper" light palette).
+  --bg: #fbfaf7;
+  --fg: #1b1b1b;
+  --muted: #6b6b6b;
+  --rule: #e6e3dc;
+  --code-bg: #f3f0ea;
+
+  // Accents / interaction (overridable from site params).
+  --accent: #3a6ea5;
+  --accent-weak: rgba(58, 110, 165, 0.12);
+
+  // Typography.
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua",
+    Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-scale: 1.0;
+  --content-width: 42rem;
+
+  // Spacing rhythm.
+  --space: 1.5rem;
+}
+
+// Forced dark (params.dark = "on").
+[data-theme="dark"] {
+  --bg: #14161a;
+  --fg: #e8e6e1;
+  --muted: #9a9a96;
+  --rule: #2a2d33;
+  --code-bg: #1e2127;
+  --accent-weak: rgba(120, 165, 210, 0.16);
+}
+
+// OS dark, unless the user forced light (params.dark = "off").
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a;
+    --fg: #e8e6e1;
+    --muted: #9a9a96;
+    --rule: #2a2d33;
+    --code-bg: #1e2127;
+    --accent-weak: rgba(120, 165, 210, 0.16);
+  }
+}
+
+// Minimal reset.
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+}
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}

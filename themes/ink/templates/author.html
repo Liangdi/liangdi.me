@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} · {{ config.title }}{% endblock %}
+{% block content %}
+<article class="author">
+  <header class="author-header">
+    {% if page.extra.avatar %}<img class="author-avatar" src="{{ page.extra.avatar | safe }}" alt="{{ page.title }}">{% endif %}
+    <div class="author-meta">
+      <h1>{{ page.title }}</h1>
+      {% if page.extra.role %}<p class="author-role">{{ page.extra.role }}</p>{% endif %}
+      {% if page.extra.website or page.extra.twitter or page.extra.github %}
+      <p class="author-social">
+        {% if page.extra.website %}<a href="{{ page.extra.website | safe }}">Website</a>{% endif %}
+        {% if page.extra.twitter %}<a href="https://twitter.com/{{ page.extra.twitter | safe }}">Twitter</a>{% endif %}
+        {% if page.extra.github %}<a href="https://github.com/{{ page.extra.github | safe }}">GitHub</a>{% endif %}
+      </p>
+      {% endif %}
+    </div>
+  </header>
+  {% if page.content %}<div class="author-bio">{{ page.content | safe }}</div>{% endif %}
+  {% set a = author(page.slug) %}
+  {% if a and a.posts %}
+  <section class="author-posts">
+    <h2>Posts</h2>
+    <ul class="post-list">
+      {% for p in a.posts %}
+      {% if p.lang == current_lang %}
+      <li>
+        <a class="post-list-title" href="{{ p.url | safe }}">{{ p.title }}</a>
+        {% if p.date %}<time class="post-list-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

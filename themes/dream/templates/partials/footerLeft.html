@@ -1,0 +1,18 @@
+<div>
+  {% if config.params.siteStartYear %}
+  <p>© {{ config.params.siteStartYear }} - {{ now("[year]") }} {{ config.title }}</p>
+  {% else %}
+  <p>© {{ now("[year]") }} {{ config.title }}</p>
+  {% endif %}
+
+  {% if config.params.footerBottomText %}
+  <p>{{ config.params.footerBottomText | safe }}</p>
+  {% else %}
+  <p class="text-sm">
+    🌱
+    <span class="text-base-content/60">
+      Powered by <a class="hover:underline" href="https://github.com/anycms/anycms-ssg" target="_blank">AnyCMS SSG</a> with theme
+      <a class="hover:underline" href="https://github.com/g1eny0ung/hugo-theme-dream" target="_blank">Dream</a>.</span>
+  </p>
+  {% endif %}
+</div>

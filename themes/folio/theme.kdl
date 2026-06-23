@@ -1,0 +1,27 @@
+theme {
+    name "folio"
+    version "0.1.0"
+    engine-version "0.1"
+    author "AnyCMS"
+    description "Portfolio / visual-work theme — gallery grid, bold display type, generous whitespace."
+    homepage "https://github.com/anycms/anycms-ssg"
+    license "MIT"
+
+    // User-tunable design tokens (overridable from site.kdl `params`).
+    params {
+        accent     default="#111111"
+        dark       default="auto"   enum="auto,on,off"
+        font_scale default="1.0"
+        width      default="normal" enum="normal,wide"
+        columns    default="3"      enum="2,3,4"
+    }
+
+    layouts {
+        base
+        index
+        section
+        page
+        taxonomy
+        taxonomy_term
+    }
+}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ taxonomy.name }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="taxonomy">
+  <h1>{{ taxonomy.name }}</h1>
+  <ul class="term-list">
+    {% for term in taxonomy.terms %}
+    <li>
+      <a href="{{ term.url | safe }}">{{ term.name }}</a>
+      <span class="term-count">{{ term.count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

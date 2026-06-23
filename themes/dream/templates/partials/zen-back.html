@@ -1,0 +1,18 @@
+{# Flip-card back (zen / single-column layout). #}
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      {% if config.params.author %}<p>{{ config.params.author }}</p>{% endif %}
+      {% if config.params.motto %}<p class="text-base-content/60">{{ config.params.motto }}</p>{% endif %}
+    </div>
+  </div>
+
+  {% if config.params.social or config.params.email %}
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    {% include "partials/socials.html" %}
+  </div>
+  {% endif %}
+</div>

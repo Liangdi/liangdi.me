@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ taxonomy.name }}: {{ term.name }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="taxonomy-term">
+  <header class="taxonomy-term-header">
+    <h1><span class="muted">{{ taxonomy.name }} /</span> {{ term.name }}</h1>
+  </header>
+  <ul class="post-list">
+    {% for p in term.pages %}
+    <li>
+      <a class="post-list-title" href="{{ p.url | safe }}">{{ p.title }}</a>
+      {% if p.date %}<time class="post-list-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+      {% if p.description %}<p class="post-list-desc">{{ p.description }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

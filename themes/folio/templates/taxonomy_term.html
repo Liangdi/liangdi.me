@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ taxonomy.name }}: {{ term.name }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="taxonomy-term">
+  <header class="taxonomy-term-header">
+    <h1 class="display-title"><span class="muted">{{ taxonomy.name }} /</span> {{ term.name }}</h1>
+  </header>
+  <ul class="gallery">
+    {% for p in term.pages %}
+    <li class="card">
+      <a class="card-link" href="{{ p.url | safe }}">
+        <span class="card-title">{{ p.title }}</span>
+        {% if p.date %}<time class="card-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+        {% if p.description %}<span class="card-desc">{{ p.description }}</span>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

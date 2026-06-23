@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="{{ config.default_language }}"
+      {% if config.params.dark == "on" %}data-theme="dark"
+      {% elif config.params.dark == "off" %}data-theme="light"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.title }}{% endblock %}</title>
+  <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/highlight.css">
+  {# Design tokens from site params; emitted AFTER main.css so they override
+     the theme's defaults. See theme README for the full param list. #}
+  <style>
+    :root{
+      --accent: {{ config.params.accent | default("#111111") }};
+      --font-scale: {{ config.params.font_scale | default("1.0") }};
+      --content-width: {% if config.params.width == "wide" %}72rem{% else %}56rem{% endif %};
+      --columns: {{ config.params.columns | default("3") }};
+    }
+  </style>
+  {% if config.base_url %}
+  {# hreflang alternates for the current page + its translations. #}
+  {% if page %}
+  <link rel="alternate" hreflang="{{ page.lang }}" href="{{ config.base_url | safe }}{{ page.url | safe }}">
+  {% for t in page.translations %}
+  <link rel="alternate" hreflang="{{ t.lang }}" href="{{ config.base_url | safe }}{{ t.url | safe }}">
+  {% endfor %}
+  <link rel="alternate" hreflang="x-default" href="{{ config.base_url | safe }}{{ page.url | safe }}">
+  {% elif section %}
+  <link rel="alternate" hreflang="{{ section.lang }}" href="{{ config.base_url | safe }}{{ section.url | safe }}">
+  {% for t in section.translations %}
+  <link rel="alternate" hreflang="{{ t.lang }}" href="{{ config.base_url | safe }}{{ t.url | safe }}">
+  {% endfor %}
+  {% endif %}
+  {% endif %}
+  {{ seo_head | safe }}
+  {{ head_inject | safe }}
+  {% block styles %}{% endblock %}
+</head>
+<body class="folio">
+  <header class="site-header">
+    <a class="site-title" href="/">{{ config.title }}</a>
+    <nav class="site-nav">
+      {% set menu = config.menu[config.default_language] %}
+      {% if menu %}
+      {% for item in menu %}<a href="{{ item.url | safe }}">{{ item.label }}</a>
+      {% endfor %}
+      {% else %}
+      <a href="/">Work</a>
+      <a href="/archive/">Archive</a>
+      <a href="/tags/">Tags</a>
+      <a href="/search/">Search</a>
+      {% endif %}
+      {% if page and page.translations %}
+      <span class="lang-switch">
+        {%- for t in page.translations -%}
+        <a href="{{ t.url | safe }}">{{ t.lang }}</a>
+        {%- endfor -%}
+      </span>
+      {% elif section and section.translations %}
+      <span class="lang-switch">
+        {%- for t in section.translations -%}
+        <a href="{{ t.url | safe }}">{{ t.lang }}</a>
+        {%- endfor -%}
+      </span>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; {{ config.title }}</p>
+  </footer>
+
+  {{ body_inject | safe }}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

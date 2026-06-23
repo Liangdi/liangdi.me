@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title | default(config.title) }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="listing">
+  {% if section.content %}
+  <div class="listing-intro">{{ section.content | safe }}</div>
+  {% endif %}
+  {% set posts = all_pages(config.default_language) %}
+  <ul class="post-list">
+    {% for p in posts if p.date %}
+    <li>
+      <a class="post-list-title" href="{{ p.url | safe }}">{{ p.title }}</a>
+      {% if p.date %}<time class="post-list-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

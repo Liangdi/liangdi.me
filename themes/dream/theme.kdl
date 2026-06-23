@@ -1,0 +1,55 @@
+theme {
+    name "dream"
+    version "0.1.0"
+    engine-version "0.1"
+    author "g1eny0ung (ported by AnyCMS)"
+    description "Port of the Hugo dream theme (daisyUI + Alpine.js) to anycms-ssg."
+    homepage "https://github.com/g1eny0ung/hugo-theme-dream"
+    license "MIT"
+
+    // User-tunable design tokens, mapped from dream's `params`.
+    // All values are strings — the templates test them as `config.params.X`.
+    params {
+        // Zen mode: single-column reading layout (max-w 65ch) vs masonry grid.
+        zenMode                 default="true"
+        // daisyUI theme names for light / dark.
+        lightTheme              default="emerald"
+        darkTheme               default="forest"
+
+        author                  default=""
+        headerTitle             default=""
+        motto                   default=""
+        avatar                  default=""
+        footerBottomText        default=""
+        siteStartYear           default=""
+        rss                     default="true"
+
+        stickyNav               default="false"
+        noDefaultSummaryCover   default="false"
+        // Default cover for posts without one. Empty → rotate through
+        // /images/default1..4.jpg. Set to a static path to use one image.
+        defaultCover             default=""
+        showSummaryCoverInPost  default="false"
+        showPrevNextPost        default="true"
+        showTableOfContents     default="true"
+
+        // Comma-separated nav icon order: search,rss,posts,categories,tags
+        reorderNavItems         default="search,rss,posts,categories,tags"
+
+        backgroundImage         default=""
+        backgroundImageDark     default=""
+
+        // luxon client-side date formatting.
+        jsDate                  default="true"
+        jsDateFormat            default="yyyy-MM-dd"
+    }
+
+    layouts {
+        base
+        index
+        section
+        page
+        taxonomy
+        taxonomy_term
+    }
+}

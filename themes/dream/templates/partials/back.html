@@ -1,0 +1,26 @@
+{# Flip-card back (grid layout). dream renders the about page(s) + socials
+   here. We render an about section + the socials partial when present. #}
+<div class="dream-grid">
+  <div class="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 p-4 dream-column">
+    <article class="card card-compact bg-base-100 hover:bg-base-content/10 shadow-xl dark:border dark:border-base-content/30">
+      <div class="card-body">
+        <div class="card-title">关于</div>
+        <div class="prose dark:prose-invert">
+          {% if config.params.author %}<p>{{ config.params.author }}</p>{% endif %}
+          {% if config.params.motto %}<p class="text-base-content/60">{{ config.params.motto }}</p>{% endif %}
+        </div>
+      </div>
+    </article>
+  </div>
+
+  {% if config.params.social or config.params.email %}
+  <div class="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 p-4 dream-column">
+    <article class="card card-compact bg-base-100 hover:bg-base-content/10 shadow-xl dark:border dark:border-base-content/30">
+      <div class="card-body">
+        <div class="card-title">社交链接</div>
+        {% include "partials/socials.html" %}
+      </div>
+    </article>
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title }}{% endblock %}
+{% block main %}
+
+{% if config.params.zenMode == 'true' %}
+<div class="dream-zen-posts max-w-[65ch] mt-8 mx-auto px-4 space-y-8">
+  {% for p in section.pages %}
+  {% include "_zen-summary.html" %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="dream-grid">
+  {% for p in section.pages %}
+  <div class="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 p-4 dream-column">
+    {% include "_summary.html" %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if section.paginator and section.paginator.total_pages > 1 %}
+<div class="flex justify-center mt-8">
+  {% set paginator = section.paginator %}
+  {% include "partials/paginator.html" %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block js %}
+{% if config.params.jsDate == 'true' %}
+{% include "partials/luxon.html" %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+{# Prev/next pagination nav. Reads the loop-local `paginator` object
+   (set before include). anycms fields: prev_url / next_url (Options). #}
+{% if paginator and (paginator.prev_url or paginator.next_url) %}
+<nav class="paginator">
+  {% if paginator.prev_url %}<a class="paginator-prev" href="{{ paginator.prev_url | safe }}">← 上一页</a>{% else %}<span class="paginator-disabled">← 上一页</span>{% endif %}
+  {% if paginator.next_url %}<a class="paginator-next" href="{{ paginator.next_url | safe }}">下一页 →</a>{% else %}<span class="paginator-disabled">下一页 →</span>{% endif %}
+</nav>
+{% endif %}

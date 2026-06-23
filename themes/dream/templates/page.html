@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block css %}
+{% if config.params.customSyntaxHighlighting == 'true' %}
+<link rel="stylesheet" data-custom-syntax-highlighting />
+<style>
+  .chroma {
+    padding: 1em;
+    background-color: var(--dream-pre-bg, #f5f5f5);
+    border-radius: .5em;
+    overflow: auto;
+  }
+  html.dark .chroma {
+    background-color: var(--dream-pre-bg-dark, #262626);
+  }
+</style>
+{% else %}
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block main %}
+<div class="mt-4 px-4">
+  {% if config.params.showTableOfContents == 'true' %}
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  {% else %}
+  <div>
+  {% endif %}
+    {% if config.params.showTableOfContents == 'true' and page.toc %}
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        {% for item in page.toc %}
+        <div style="margin-left: {{ (item.level - 2) * 12 }}px"><a href="#{{ item.id | safe }}">{{ item.text }}</a></div>
+        {% endfor %}
+      </nav>
+    </div>
+    {% endif %}
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">{{ page.title }}</h1>
+        <p class="text-sm">
+          {% if config.params.jsDate == 'true' %}
+          <span data-format="luxon">{{ page.date }}</span>
+          {% else %}
+          {{ page.date }}
+          {% endif %}
+        </p>
+        <div class="flex justify-between">
+          {% set author_ctx = page %}
+          {% include "partials/author.html" %}
+          {% include "partials/share.html" %}
+        </div>
+      </header>
+
+      {% if page.cover and config.params.showSummaryCoverInPost == 'true' %}
+      <img src="{{ page.cover.url | safe }}"{% if page.cover.srcset %} srcset="{{ page.cover.srcset | safe }}"{% endif %} alt="{{ page.title }}" />
+      {% endif %}
+
+      {{ page.content | safe }}
+
+      {% if config.params.showPrevNextPost == 'true' %}
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        {# anycms: `newer` = the newer post (dream's "prevPage"), `older` = older. #}
+        {% if page.newer %}
+        <a class="group btn btn-outline" href="{{ page.newer.url | safe }}" title="{{ page.newer.title }}">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">{{ page.newer.title }}</span>
+          </div>
+        </a>
+        {% else %}
+        <div></div>
+        {% endif %}
+
+        {% if page.older %}
+        <a class="group btn btn-outline" href="{{ page.older.url | safe }}" title="{{ page.older.title }}">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">{{ page.older.title }}</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        {% else %}
+        <div></div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+{% if config.params.jsDate == 'true' %}
+{% include "partials/luxon.html" %}
+{% endif %}
+{% endblock %}

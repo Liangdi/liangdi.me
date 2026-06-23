@@ -1,0 +1,26 @@
+theme {
+    name "ink"
+    version "0.1.0"
+    engine-version "0.1"
+    author "AnyCMS"
+    description "Minimal, typography-first blog theme — the reference default."
+    homepage "https://github.com/anycms/anycms-ssg"
+    license "MIT"
+
+    // User-tunable design tokens (overridable from site.kdl `params`).
+    params {
+        accent     default="#3a6ea5"
+        dark       default="auto"   enum="auto,on,off"
+        font_scale default="1.0"
+        width      default="normal" enum="normal,wide"
+    }
+
+    layouts {
+        base
+        index
+        section
+        page
+        taxonomy
+        taxonomy_term
+    }
+}

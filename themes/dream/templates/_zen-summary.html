@@ -1,0 +1,21 @@
+<a class="flex justify-between items-center gap-4" href="{{ p.url | safe }}">
+  <div>
+    <h2 class="text-lg font-medium underline">{{ p.title }}</h2>
+    <span class="date text-base-content/60 text-sm">
+      {% if config.params.jsDate == 'true' %}
+      <span data-format="luxon">{{ p.date }}</span>
+      {% else %}
+      {{ p.date }}
+      {% endif %}
+    </span>
+  </div>
+  {% if p.cover %}
+  <figure>
+    <img class="w-24 max-w-none rounded-lg" src="{{ p.cover.url | safe }}"{% if p.cover.srcset %} srcset="{{ p.cover.srcset | safe }}"{% endif %} alt="{{ p.title }}" loading="lazy" />
+  </figure>
+  {% elif config.params.noDefaultSummaryCover != 'true' %}
+  <figure>
+    <img class="w-24 max-w-none rounded-lg" src="{{ config.params.defaultCover | default('/images/default' ~ ((loop.index0 % 4) + 1) ~ '.jpg') | safe }}" alt="{{ p.title }}" loading="lazy" />
+  </figure>
+  {% endif %}
+</a>

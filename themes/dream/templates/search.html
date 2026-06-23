@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}搜索{% endblock %}
+{% block main %}
+
+{# Client-side search via fuse.js over anycms's `/search.json`.
+   anycms emits `search.json` by default — a JSON array of
+   { id, title, url, body, excerpt, ... } objects. #}
+<div class="{% if config.params.zenMode == 'true' %}max-w-[65ch] mt-8 lg:mt-12 mx-auto px-4{% else %}mt-8 lg:mt-12 px-4{% endif %}"
+x-data="{
+  search: '',
+  posts: [],
+  get results() { return this.search !== '' ? this.fuse ? this.fuse.search(this.search).slice(0, 20) : [] : [] },
+  async init() {
+    const res = await fetch('/search.json');
+    const data = await res.json();
+    this.fuse = new Fuse(data, { keys: ['title', 'body'], includeScore: false });
+  }
+}">
+  <label for="search" class="input input-bordered flex items-center gap-2">
+    <input id="search" name="search" type="text" class="grow" placeholder="搜索" x-model.debounce="search" />
+    <ion-icon name="search"></ion-icon>
+  </label>
+
+  <div class="mt-8 space-y-4">
+  <template x-for="hit in results" :key="hit.item.url">
+    <a class="card card-compact bg-base-100 hover:bg-base-content/10 cursor-pointer border border-base-content/30" :href="hit.item.url">
+      <div class="card-body">
+        <h2 class="card-title" x-text="hit.item.title"></h2>
+        <div x-html="hit.item.excerpt || hit.item.body"></div>
+      </div>
+    </a>
+  </template>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
+{% endblock %}

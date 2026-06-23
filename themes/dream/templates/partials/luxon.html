@@ -1,0 +1,13 @@
+{# luxon formats every `[data-format="luxon"]` span client-side. Kept because
+   dream's jsDate is on — the server emits ISO dates, luxon localises them. #}
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "{{ config.default_language }}" }).toFormat("{{ config.params.jsDateFormat | default('yyyy-MM-dd') }}")
+    })
+  }
+</script>

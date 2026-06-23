@@ -1,0 +1,21 @@
+{# Social links from `config.params.social` (a KDL child block → JSON object).
+   MiniJinja iterates object entries as (key, value) pairs. Guard with an
+   existence check so an absent `social` block doesn't error. #}
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  {% if config.params.email %}
+  <li>
+    <a href="mailto:{{ config.params.email }}" title="Email">
+      <ion-icon name="mail"></ion-icon>
+    </a>
+  </li>
+  {% endif %}
+  {% if config.params.social %}
+    {% for item in config.params.social %}
+    <li>
+      <a href="{{ item.value | safe }}" target="_blank" rel="noopener noreferrer" title="{{ item.key }}">
+        <ion-icon name="logo-{{ item.key }}"></ion-icon>
+      </a>
+    </li>
+    {% endfor %}
+  {% endif %}
+</ul>

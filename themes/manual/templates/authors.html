@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title | default("Authors") }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="authors-listing">
+  <header class="authors-header"><h1>{{ section.title | default("Authors") }}</h1></header>
+  {% if section.content %}<div class="authors-intro">{{ section.content | safe }}</div>{% endif %}
+  <ul class="authors-grid">
+    {% for a in section.pages %}
+    <li class="author-card">
+      <a href="{{ a.url | safe }}">
+        {% if a.extra and a.extra.avatar %}<img class="author-card-avatar" src="{{ a.extra.avatar | safe }}" alt="{{ a.title }}">{% endif %}
+        <span class="author-card-name">{{ a.title }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

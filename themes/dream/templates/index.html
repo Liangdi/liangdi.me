@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}首页{% endblock %}
+{% block main %}
+
+{# The homepage is the post stream. Posts live under content/p/ (a separate
+   section, so the root section's `.pages` is empty); use the global
+   `all_pages()` fn to list every published post in the default language. #}
+{% set posts = all_pages(config.default_language) %}
+
+{% if config.params.zenMode == 'true' %}
+<div class="dream-zen-posts max-w-[65ch] mt-8 mx-auto px-4 space-y-8">
+  {% for p in posts %}
+  {% include "_zen-summary.html" %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="dream-grid">
+  {% for p in posts %}
+  <div class="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 p-4 dream-column">
+    {% include "_summary.html" %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if section.paginator and section.paginator.total_pages > 1 %}
+<div class="flex justify-center mt-8">
+  {% set paginator = section.paginator %}
+  {% include "partials/paginator.html" %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block js %}
+{% if config.params.jsDate == 'true' %}
+{% include "partials/luxon.html" %}
+{% endif %}
+{% endblock %}

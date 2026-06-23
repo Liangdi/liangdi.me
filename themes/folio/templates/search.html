@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Search · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="search-section">
+  <header class="gallery-section-header">
+    <h1 class="display-title">Search</h1>
+  </header>
+  {# Client-side search over anycms's default /search.json. Vanilla JS + fuse.js. #}
+  <input type="text" id="search-input" class="search-input" placeholder="Type to search…">
+  <ul id="search-results" class="search-results"></ul>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
+<script>
+(async () => {
+  const res = await fetch('/search.json');
+  const data = await res.json();
+  const fuse = new Fuse(data, { keys: ['title', 'body'], includeScore: false });
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    results.innerHTML = '';
+    if (!q) return;
+    results.innerHTML = fuse.search(q).slice(0, 20)
+      .map(h => `<li><a href="${h.item.url}">${h.item.title}</a></li>`).join('');
+  });
+})();
+</script>
+{% endblock %}

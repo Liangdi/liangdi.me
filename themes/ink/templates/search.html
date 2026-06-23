@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}搜索 · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="listing search">
+  <header class="listing-header">
+    <h1>搜索</h1>
+  </header>
+  {# Client-side search over anycms's default /search.json (JSON array of
+     {title,url,body,excerpt}). Vanilla JS + fuse.js — no Alpine dependency. #}
+  <input type="text" id="search-input" class="search-input" placeholder="输入关键词…">
+  <ul id="search-results" class="post-list"></ul>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
+<script>
+(async () => {
+  const res = await fetch('/search.json');
+  const data = await res.json();
+  const fuse = new Fuse(data, { keys: ['title', 'body'], includeScore: false });
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    results.innerHTML = '';
+    if (!q) return;
+    const hits = fuse.search(q).slice(0, 20);
+    results.innerHTML = hits
+      .map(h => `<li><a class="post-list-title" href="${h.item.url}">${h.item.title}</a></li>`)
+      .join('');
+  });
+})();
+</script>
+{% endblock %}

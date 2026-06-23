@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Search · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="listing search">
+  <header class="listing-header">
+    <h1>Search</h1>
+  </header>
+  {# Dedicated /search/ page over /search.json (vanilla JS + fuse.js).
+     Uses `page-search-*` ids so it never collides with the header search box
+     in base.html (id="search"), which is always available too. #}
+  <input type="text" id="page-search-input" class="search-input" placeholder="Type to search…">
+  <ul id="page-search-results" class="doc-list"></ul>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" crossorigin="anonymous"></script>
+<script>
+(async () => {
+  const res = await fetch('/search.json');
+  const data = await res.json();
+  const fuse = new Fuse(data, { keys: ['title', 'body'], includeScore: false });
+  const input = document.getElementById('page-search-input');
+  const results = document.getElementById('page-search-results');
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    results.innerHTML = '';
+    if (!q) return;
+    results.innerHTML = fuse.search(q).slice(0, 20)
+      .map(h => `<li><a class="doc-list-title" href="${h.item.url}">${h.item.title}</a></li>`).join('');
+  });
+})();
+</script>
+{% endblock %}

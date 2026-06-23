@@ -1,0 +1,47 @@
+{# Card used in the masonry grid listings. Reads the loop variable `p`.
+   Cover comes from the first-class `cover` front-matter field → `p.cover`
+   (a `{ url, srcset? }` object resolved by the build). `p.extra` is guarded
+   because a page with no custom front-matter has an absent `extra`. #}
+{% set author_name = (p.extra and p.extra.author) if (p.extra and p.extra.author) else config.params.author %}
+{% set avatar = (p.extra and p.extra.avatar) if (p.extra and p.extra.avatar) else config.params.avatar %}
+
+<a class="card card-compact bg-base-100 hover:bg-base-content/10 shadow-xl cursor-pointer dark:border dark:border-base-content/30" href="{{ p.url | safe }}">
+  {% if p.cover %}
+  <figure>
+    <img src="{{ p.cover.url | safe }}"{% if p.cover.srcset %} srcset="{{ p.cover.srcset | safe }}"{% endif %} alt="{{ p.title }}" loading="lazy" />
+  </figure>
+  {% elif config.params.noDefaultSummaryCover != 'true' %}
+  <figure>
+    <img src="{{ config.params.defaultCover | default('/images/default' ~ ((loop.index0 % 4) + 1) ~ '.jpg') | safe }}" alt="{{ p.title }}" loading="lazy" />
+  </figure>
+  {% endif %}
+
+  <div class="card-body">
+    <h2 class="card-title">{{ p.title }}</h2>
+
+    <p class="date text-base-content/60">
+      {% if config.params.jsDate == 'true' %}
+      <span data-format="luxon">{{ p.date }}</span>
+      {% else %}
+      {{ p.date }}
+      {% endif %}
+    </p>
+
+    {% if p.description %}{{ p.description }}{% endif %}
+
+    <div class="card-actions justify-between items-center mt-4">
+      <div class="flex items-center">
+        {% if avatar %}
+        <div class="avatar mr-1">
+          <div class="w-8 rounded-full">
+            <img class="my-0" src="{{ avatar | safe }}" alt="{{ author_name }}" />
+          </div>
+        </div>
+        {% else %}
+        <span>@</span>
+        {% endif %}
+        <span>{{ author_name }}</span>
+      </div>
+    </div>
+  </div>
+</a>

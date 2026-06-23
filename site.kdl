@@ -1,0 +1,60 @@
+title "Liangdi's Blog"
+base_url "https://liangdi.me"
+default_language "zh"
+output_dir "public"
+theme "dream"
+
+// Posts live at content/p/<slug>.md → default :section/:slug/ yields /p/<slug>/
+// (matches Hugo's post: /p/:slug/). Top-level pages (content/<slug>.md) → /<slug>/.
+// No permalink override needed — the default handles both.
+
+taxonomies {
+    taxonomy name="tags"
+    taxonomy name="categories"
+}
+
+// dream theme params (override the theme's defaults).
+params {
+    zenMode "true"
+    lightTheme "emerald"
+    darkTheme "forest"
+
+    author "Liangdi"
+    headerTitle "Liangdi's Blog"
+    motto "关注开源技术."
+    footerBottomText "谦和之静,厚积薄发"
+    siteStartYear "2016"
+    rss "true"
+
+    showPrevNextPost "true"
+    showTableOfContents "true"
+    noDefaultSummaryCover "true"
+    jsDate "true"
+    jsDateFormat "yyyy年MM月dd日"
+
+    reorderNavItems "search,rss,posts,categories,tags"
+
+    social {
+        github "https://github.com/Liangdi"
+    accent "#135eae"
+    dark "auto"
+    width "normal"
+    }
+}
+
+image {
+    enabled #true
+    widths "640,1024,1920"
+    quality 80
+}
+
+// Deploy: `anycms deploy gh` pushes the built public/ to the GitHub Pages repo
+// via `git push` (force, to a dedicated deploy branch). Make sure the repo's
+// Pages serving branch is set to `gh-pages` (GitHub: Settings → Pages).
+deploy {
+    target "gh" {
+        provider "git"
+        repo "git@github.com:Liangdi/liangdi.me.git"
+        branch "gh-pages"
+    }
+}

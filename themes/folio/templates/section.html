@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title | default(config.title) }} · {{ config.title }}{% endblock %}
+{% block content %}
+<section class="gallery-section">
+  <header class="gallery-section-header">
+    <h1 class="display-title">{{ section.title }}</h1>
+    {% if section.content %}<div class="gallery-intro">{{ section.content | safe }}</div>{% endif %}
+  </header>
+  <ul class="gallery">
+    {% for p in section.pages %}
+    <li class="card">
+      <a class="card-link" href="{{ p.url | safe }}">
+        {% if p.cover %}
+        <img class="card-cover" src="{{ p.cover.url | safe }}"{% if p.cover.srcset %} srcset="{{ p.cover.srcset | safe }}"{% endif %} alt="{{ p.title }}" loading="lazy">
+        {% endif %}
+        <span class="card-title">{{ p.title }}</span>
+        {% if p.date %}<time class="card-date" datetime="{{ p.date }}">{{ p.date }}</time>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% set paginator = section.paginator %}{% include "partials/paginator.html" %}
+</section>
+{% endblock %}

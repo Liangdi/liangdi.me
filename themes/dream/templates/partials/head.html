@@ -1,0 +1,30 @@
+{# <head> contents: favicon, canonical, SEO meta, output.css, background. #}
+{% if config.params.favicon %}
+<link href="{{ config.params.favicon | safe }}" rel="icon" type="image/x-icon" />
+{% endif %}
+
+{% set canonical = config.base_url ~ page.url if page else config.base_url ~ section.url if section else config.base_url %}
+<link rel="canonical" href="{{ canonical | safe }}" />
+
+{# anycms host-default SEO (title/description/canonical/OG). Augment with
+   explicit author/keywords for fidelity to dream. #}
+{{ seo_head | safe }}
+
+{% set desc = page.description if page and page.description else section.description if section and section.description else config.description %}
+<meta name="author" content="{{ config.params.author }}" />
+{% if desc %}<meta name="description" content="{{ desc }}" />{% endif %}
+
+{# The daisyUI/Tailwind stylesheet — precompiled from dream, copied as-is. #}
+<link rel="stylesheet" href="/css/output.css" />
+
+{# Optional background image (params.backgroundImage / backgroundImageDark). #}
+{% if config.params.backgroundImage or config.params.backgroundImageDark %}
+<style>
+  {% if config.params.backgroundImage %}
+  #dream-global-bg { background-image: url({{ config.params.backgroundImage | safe }}); }
+  {% endif %}
+  {% if config.params.backgroundImageDark %}
+  html.dark #dream-global-bg { background-image: url({{ config.params.backgroundImageDark | safe }}); }
+  {% endif %}
+</style>
+{% endif %}

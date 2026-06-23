@@ -1,0 +1,73 @@
+{% macro nav_icon(slot) %}
+  {% if slot == "search" %}
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  {% elif slot == "rss" %}
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  {% elif slot == "posts" %}
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  {% elif slot == "categories" %}
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  {% elif slot == "tags" %}
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  {% endif %}
+{% endmacro %}
+
+{% if config.params.stickyNav == 'true' %}
+<nav x-data="{ isSticky: false }"
+  x-init="window.addEventListener('scroll', () => { isSticky = window.scrollY > 30 })"
+  class="sticky top-0 z-30 mt-4 lg:mt-8 py-4"
+  :class="{ 'bg-base-100 shadow-lg dark:border-b dark:border-base-content/30': isSticky }">
+{% else %}
+<nav class="mt-4 lg:mt-8 py-4">
+{% endif %}
+  <div class="container flex justify-between {% if config.params.zenMode == 'true' %}max-w-[65ch] mx-auto px-4 md:px-0{% else %}px-4{% endif %}">
+    <section class="flex items-center gap-4">
+      {% if config.params.headerTitle %}
+      <div>
+        <a href="{{ config.base_url | safe }}" class="text-lg font-semibold cursor-pointer">
+          {{ config.params.headerTitle }}
+        </a>
+      </div>
+      {% endif %}
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      {% if config.params.avatar %}
+      <div class="avatar cursor-pointer hover:online" @click="flip = !flip" title="关于">
+        <div class="h-10 rounded-full">
+          <img src="{{ config.params.avatar | safe }}" alt="{{ config.params.headerTitle }}" />
+        </div>
+      </div>
+      {% endif %}
+
+      {{ nav_icon("search") }}
+      {{ nav_icon("rss") }}
+      {{ nav_icon("posts") }}
+      {{ nav_icon("categories") }}
+      {{ nav_icon("tags") }}
+    </section>
+  </div>
+</nav>

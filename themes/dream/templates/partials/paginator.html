@@ -1,0 +1,22 @@
+{# Prev/next pagination nav. Reads the loop-local `paginator` object
+   (set before include). anycms fields: prev_url / next_url (Options). #}
+<div class="join grid grid-cols-2">
+  {% if paginator.prev_url %}
+  <a href="{{ paginator.prev_url | safe }}" title="上一页" class="join-item btn btn-outline btn-sm">
+    上一页
+  </a>
+  {% else %}
+  <button class="join-item btn btn-outline btn-sm" disabled>
+    上一页
+  </button>
+  {% endif %}
+  {% if paginator.next_url %}
+  <a href="{{ paginator.next_url | safe }}" title="下一页" class="join-item btn btn-outline btn-sm">
+    下一页
+  </a>
+  {% else %}
+  <button class="join-item btn btn-outline btn-sm" disabled>
+    下一页
+  </button>
+  {% endif %}
+</div>
