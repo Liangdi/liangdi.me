@@ -86,17 +86,17 @@
 </entry>
 
 <entry>
-<title>搜索</title>
-<link href="https://liangdi.me/search/"/>
-<id>https://liangdi.me/search/</id>
+<title>关于</title>
+<link href="https://liangdi.me/about/"/>
+<id>https://liangdi.me/about/</id>
 
 <summary></summary>
 </entry>
 
 <entry>
-<title>关于</title>
-<link href="https://liangdi.me/about/"/>
-<id>https://liangdi.me/about/</id>
+<title>搜索</title>
+<link href="https://liangdi.me/search/"/>
+<id>https://liangdi.me/search/</id>
 
 <summary></summary>
 </entry>
