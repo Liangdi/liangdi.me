@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>渐进式云原生实践: 使用 podman 容器化你的应用 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/progressive-cloud-native-with-podman/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#何为云原生">何为云原生</a></div>
+        
+        <div style="margin-left: 0px"><a href="#渐进式云原生">渐进式云原生</a></div>
+        
+        <div style="margin-left: 0px"><a href="#使用-podman-容器化你的应用">使用 podman 容器化你的应用</a></div>
+        
+        <div style="margin-left: 12px"><a href="#实践目标">实践目标</a></div>
+        
+        <div style="margin-left: 12px"><a href="#实践过程">实践过程</a></div>
+        
+        <div style="margin-left: 24px"><a href="#系统和-podman-的版本选择">系统和 podman 的版本选择</a></div>
+        
+        <div style="margin-left: 24px"><a href="#安装-podman">安装 podman</a></div>
+        
+        <div style="margin-left: 24px"><a href="#新的拓扑架构">新的拓扑架构</a></div>
+        
+        <div style="margin-left: 24px"><a href="#创建容器网络和基础容器">创建容器网络和基础容器</a></div>
+        
+        <div style="margin-left: 24px"><a href="#创建-spring-boot-容器">创建 Spring Boot 容器</a></div>
+        
+        <div style="margin-left: 24px"><a href="#创建-systemd-服务">创建 systemd 服务</a></div>
+        
+        <div style="margin-left: 0px"><a href="#容器化总结">容器化总结</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">渐进式云原生实践: 使用 podman 容器化你的应用</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-04-23T16:59:14+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=渐进式云原生实践: 使用 podman 容器化你的应用&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;progressive-cloud-native-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;progressive-cloud-native-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=渐进式云原生实践: 使用 podman 容器化你的应用 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;progressive-cloud-native-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="何为云原生">何为云原生</h2>
+<blockquote>
+<p><code>云原生</code>一词可谓是大红大紫, 老板见面不说一下都觉得落伍了,技术人员更是要与时俱进,学习这<code>一系列</code>的新技术</p>
+</blockquote>
+<p>先看看 <a href="cncf.io">CNCF</a> 对云原生的最新定义,注意<code>云原生</code>的定义一直是演进的,随着新技术,新架构的发展,定义也会变化.</p>
+<blockquote>
+<p>云原生技术有利于各组织在公有云、私有云和混合云等新型动态环境中，构建和运行可弹性扩展的应用。云原生的代表技术包括容器、服务网格、微服务、不可变基础设施和声明式API。</p>
+</blockquote>
+<blockquote>
+<p>这些技术能够构建容错性好、易于管理和便于观察的松耦合系统。结合可靠的自动化手段，云原生技术使工程师能够轻松地对系统作出频繁和可预测的重大变更。</p>
+</blockquote>
+<p>以上这两段话来自 CNCF 的<a href="https://github.com/cncf/toc/blob/main/DEFINITION.md#%E4%B8%AD%E6%96%87%E7%89%88%E6%9C%AC">云原生定义</a>.</p>
+<p>简单的说就是用各种技术实现了大多数人梦寐以求的理想系统方案!</p>
+<p>但是,如果一个传统技术栈的团队,要向<code>云原生</code>迁移,代价会是多大呢? 这是个值得思考的问题.</p>
+<p>CNCF 有两个子站点 https://glossary.cncf.io/ 和 https://landscape.cncf.io/</p>
+<p>这两个站点可以大致了解<code>云原生</code>涉及到新概念以及生态图谱, 如此多的概念和繁杂的生态,对于传统技术团队来说将会带来额外的心智负担以及新的挑战.</p>
+<h2 id="渐进式云原生">渐进式云原生</h2>
+<p>因此针对我们小团队以及小部门,我提出了<code>渐进式云原生</code> 和 <code>轻量化云原生</code> 的概念,以便云原生落地.</p>
+<p><code>渐进式云原生</code> 是指自下往上,分阶段完成云原生迁移和落地. 这里大概会包含 <code>容器化</code>, <code>微服务化</code> , <code>DevOps</code> ,<code>CI/DI</code> 等方面向云端迁移, 而且不强调顺序, 实际的顺序大多数根团队的技术栈相关.</p>
+<p>所以这系列应该不会出现一来就叫你部署一套 <code>k8s</code> 集群, 可能到最后也不会,而是取决于你自己的选择.</p>
+<p>这一系列就是一次渐进式云原生的实践,废话一大推,我们进入正题</p>
+<h2 id="使用-podman-容器化你的应用">使用 podman 容器化你的应用</h2>
+<p>第一篇是<code>使用 podman 容器化你的应用</code> , 我认为容器化是迈向云原生过程中最简单的部分, 技术也成熟,风险不大. 这里为什么选择 <code>podman</code> ,详谈的话,需要再开一篇文章.</p>
+<h3 id="实践目标">实践目标</h3>
+<p>将一个传统的项目 CentOS -&gt; Nginx -&gt; (Spring Boot, MySQL, Redis) 容器化</p>
+<p>原项目是一个不算复杂的 Spring Boot 应用, 由于 Java 没法热更新, 所以使用 Nginx 反向代理了两套 Spring Boot 应用(两套应用可以同时运行也可以只运行一套), 关键时刻可实现用户无感知更新.</p>
+<p>两套 Spring Boot 应用监听不同端口, 使用 Systemd 作为系统服务配置, 上传新 jar 包后, 重启一个项目后, 再重启另外一个项目, 可以通过简单脚本实现.</p>
+<p>前端静态页面</p>
+<p>拓扑图如下:
+<img src="/p/progressive-cloud-native-with-podman/podman/topology-centos.png" alt="" />传统架构</p>
+<h3 id="实践过程">实践过程</h3>
+<h4 id="系统和-podman-的版本选择">系统和 podman 的版本选择</h4>
+<p>原先部署在 CentOS 8 上, 这次容器化对 HOST 系统就没有特别的要求了, 所以选择了 Fedora Server, 三个原因: 一, 本人工作电脑使用 Fedora . 二, 容器技术依赖于 Linux 内核的 cgroup 和 namespace 技术,新内核会比老内核有优势, 虽然 Fedora 内核很新, 但是我相信 Linux 内核的稳定性. 三, CentOS 已经不再维护.</p>
+<p>Podman 我选择了最新的 4.0.x, 它和 3.x 版本不兼容功能, 但是使用上不会有差别, 主要是网络功能默认使用了 <code>netavark</code> 和 <code>aardvark-dns</code> ,没有使用 cni, 这两个工具是用 <code>rust</code> 编写的, 这也是我去尝试的主要原因之一</p>
+<p>容器使用选择 <code>rootfull</code> 还是 <code>rootless</code> , 我这里选择 <code>root</code> 运行, <code>rootless</code> 其实问题也不大,我测试除了没法 ping, 80/443端口等问题外, 还有一个不算特别大的问题就是, 容器创建好后无法再加入网络,需要创建的时候指定网络, <code>root</code> 情况下没问题.</p>
+<pre><code>禁用 selinux
+</code></pre>
+<h4 id="安装-podman">安装 podman</h4>
+<p>fedora 中安装 podman 很简单</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> dnf copr enable rhcontainerbot/podman4</span>
+<span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> dnf install podman</span>
+</span></code></pre>
+<p>如果是安装 3.x 的版本, 还需要额外安装 <code>podman-plugins</code> 包,以实现 cni 网络的 dns 服务功能</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> dnf install podman</span>
+<span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> dnf install podman-plugins</span>
+</span></code></pre>
+<p>在使用上版本 4 和版本 3 没有直接区别</p>
+<h4 id="新的拓扑架构">新的拓扑架构</h4>
+<p>还没有完全想好 nginx 这个前端代理以及前端静态页面是否要容器化,所以这里先保留之前的部署方案,拓扑图如下:
+<img src="/p/progressive-cloud-native-with-podman/podman/topology-container.png" alt="" />传统架构</p>
+<h4 id="创建容器网络和基础容器">创建容器网络和基础容器</h4>
+<p>根据新的拓扑设计, Spring Boot 应用, MySQL , Redis 将会是以独立容器存在,所以需要创建一个网络将他们链接.</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建名为 prod 的容器网络</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> network create prod</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 查看网络</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> network ls</span>
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 之后创建或者运行容器的时候使用 --net prod 即可将容器加入到这个网络中</span><span class="comment line number-sign shell">
+</span></span></code></pre>
+<p>redis 容器</p>
+<p>使用以下命令创建 redis 容器</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>d</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> redis<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>net</span> prod redis</span>
+</span></code></pre>
+<p>podman 支持多镜像服务器 , 所以如果不指定镜像服务器, 会让你选择, 一般选择 dokcer.io 的即可</p>
+<p>注意: 上面使用 --net prod 将 redis 容器加入到网络中, 同时指定了名字 <code>redis</code> , 这样网络中的主机名会是 <code>redis</code> , 也可以使用  --hostname 参数</p>
+<p>注意2: 上面的命令没有使用 -p 6379:6379 将 redis 端口暴露出来,因为我们的 Spring Boot 应用也会加入到 prod 网络中,内网是可以访问的,所以不需要暴露出来.</p>
+<p>可以使用以下命令测试 redis 容器</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> exec<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>it</span> redis redis-cli PING</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 正常返回 PONG</span><span class="comment line number-sign shell">
+</span><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 也可以进入容器 bash 测试</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> exec<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>it</span> redis bash</span>
+</span></code></pre>
+<p>mysql 容器</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> MYSQL_ROOT_PASSWORD=12345678 <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    --</span>net</span> prod <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>v</span> /opt/deploy/mysql/data:/var/lib/mysql <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    --</span>name</span> mysql<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>d</span> mysql:8</span>
+</span></code></pre>
+<p><code>-e MYSQL_ROOT_PASSWORD=12345678</code> 指定了容器中 mysql root 用户的密码</p>
+<p><code>-v /opt/deploy/mysql/data:/var/lib/mysql</code> 将 host 机器 /opt/..../data 目录挂载到容器中 <code>/var/lib/mysql</code> 中, 这样 mysql 数据才能正常保存,如果缺少这个, 容器重启后, 数据将会被重置.</p>
+<p>更多配置查看 https://hub.docker.com/_/mysql</p>
+<h4 id="创建-spring-boot-容器">创建 Spring Boot 容器</h4>
+<p>应用容器比较特殊,因为是内部应用, 也没法将应用发布到公共镜像上, 正常的流程是将应用打包,发布到私有镜像服务器中,再在 podman 中使用, 这里先跳过这一步,不然内容太多了!!!</p>
+<p>我这里创建了一个公共镜像 https://github.com/Liangdi/spring-boot-launcher</p>
+<p>这个镜像主要就是 jdk 环境,可以通过配置端口和 jar 名称,运行指定的 Spring Boot 项目</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建端口为 9090 的 Spring Boot 应用</span><span class="comment line number-sign shell">
+</span><span class="variable other readwrite assignment shell">PORT</span><span class="keyword operator assignment shell">=</span><span class="string unquoted shell">9090</span>
+<span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>d</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> sprin-boot-app-<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>v</span> /opt/deploy/app/:/deploy <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>e</span> APP_PORT=<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">--</span>net</span> prod <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>p</span> <span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span>:<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span>docker.io/liangdi/spring-boot-launcher</span>
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建端口为 9091 的 Spring Boot 应用</span><span class="comment line number-sign shell">
+</span><span class="variable other readwrite assignment shell">PORT</span><span class="keyword operator assignment shell">=</span><span class="string unquoted shell">9091</span>
+<span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>d</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> sprin-boot-app-<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>v</span> /opt/deploy/app/:/deploy <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>e</span> APP_PORT=<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">--</span>net</span> prod <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">-</span>p</span> <span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span>:<span class="meta group expansion parameter shell"><span class="punctuation definition variable shell">$</span><span class="variable other readwrite shell">PORT</span></span> <span class="punctuation separator continuation line shell">\
+</span>docker.io/liangdi/spring-boot-launcher</span>
+</span></code></pre>
+<p>Spring Boot 应用容器化后,只需要将原先 mysql , redis 的链接配置修改一下即可, 原先是使用 127.0.0.1, 容器化后,改为容器主机名 <code>mysql</code> 和 <code>redis</code> 即可.</p>
+<p>Nginx 反向代理和前端静态文件方面,没有去改动.</p>
+<p>到此, 此次 Spring Boot 应用基本容器化完成, 后续就是要将应用<code>微服务化</code>了. 伴随着<code>渐进式云原生</code>,可能在运维,测试,客户交付方面也会有所改变.</p>
+<h4 id="创建-systemd-服务">创建 systemd 服务</h4>
+<p>使用 podman generate systemd  创建 sytemd service, 具体看文档 <code>https://docs.podman.io/en/latest/markdown/podman-generate-systemd.1.html</code> , 这里不再说明.</p>
+<h2 id="容器化总结">容器化总结</h2>
+<ul>
+<li>基本的容器化,程序开发上不需要有改变, 只是简单修改 prod 的配置文件</li>
+<li>运维人员工作流程基本没变</li>
+<li>podman 基本兼容 docker 命令,所以有 docker 经验将很容易上手.</li>
+<li>静态页面需不需要容器化,值的思考,如果是大流量应用, 静态页面肯定是 CDN , 如果是小应用, 那么多开一个容器多起一个静态服务器是否又是浪费? 我这次没有将静态页面容器化. 后续有新想法后再迭代</li>
+<li>podman 中还有 pod 管理功能,这也是我选择 podman 的原因之一,这方面将会在下次容器有化中使用.</li>
+<li>这次交付产物使用 -v 路径的方式告知容器,后续可以使用命名 volume 替代.</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/a-tiny-app-migrate-from-java-to-rust/" title="记录一次 java 小项目的 rust 迁移过程">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">记录一次 java 小项目的 rust 迁移过程</span>
+          </div>
+        </a>
+        
+
+        
+        <div></div>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+<title>Liangdi&#x27;s Blog</title>
+<link>https://liangdi.me</link>
+<description>Liangdi&#x27;s Blog</description>
+
+<item>
+<title>2023 年可以关注的 Rust Web 框架(后端)</title>
+<link>https://liangdi.me/p/2023-rust-web-frameworks/</link>
+<guid>https://liangdi.me/p/2023-rust-web-frameworks/</guid>
+
+<pubDate>2023-01-28T01:33:57+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>Rust 项目鉴赏: zellij 替代 screen, tmux 的终端工具</title>
+<link>https://liangdi.me/p/rust-project-review-zellij/</link>
+<guid>https://liangdi.me/p/rust-project-review-zellij/</guid>
+
+<pubDate>2023-01-23T21:44:12+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门</title>
+<link>https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/</link>
+<guid>https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/</guid>
+
+<pubDate>2022-06-03T16:01:32+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>Rust 黑客编程 - ICMP 协议 ping 的简单实现</title>
+<link>https://liangdi.me/p/rust-hacking-programing-icmp-ping/</link>
+<guid>https://liangdi.me/p/rust-hacking-programing-icmp-ping/</guid>
+
+<pubDate>2022-06-02T19:30:20+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>使用 Podman 运行 WordPress 6 Arturo</title>
+<link>https://liangdi.me/p/run-wordpress-6-arturo-with-podman/</link>
+<guid>https://liangdi.me/p/run-wordpress-6-arturo-with-podman/</guid>
+
+<pubDate>2022-06-02T12:37:58+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>一次简单的 rust 爬虫开发技术调研</title>
+<link>https://liangdi.me/p/simple-rust-crawler-technology-research/</link>
+<guid>https://liangdi.me/p/simple-rust-crawler-technology-research/</guid>
+
+<pubDate>2022-05-06T00:38:25+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别</title>
+<link>https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/</link>
+<guid>https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/</guid>
+
+<pubDate>2022-04-27T16:30:35+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>记录一次 java 小项目的 rust 迁移过程</title>
+<link>https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/</link>
+<guid>https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/</guid>
+
+<pubDate>2022-04-26T11:06:35+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>渐进式云原生实践: 使用 podman 容器化你的应用</title>
+<link>https://liangdi.me/p/progressive-cloud-native-with-podman/</link>
+<guid>https://liangdi.me/p/progressive-cloud-native-with-podman/</guid>
+
+<pubDate>2022-04-23T16:59:14+08:00</pubDate>
+<description></description>
+</item>
+
+<item>
+<title>搜索</title>
+<link>https://liangdi.me/search/</link>
+<guid>https://liangdi.me/search/</guid>
+
+
+<description></description>
+</item>
+
+<item>
+<title>关于</title>
+<link>https://liangdi.me/about/</link>
+<guid>https://liangdi.me/about/</guid>
+
+
+<description></description>
+</item>
+
+</channel>
+</rss>

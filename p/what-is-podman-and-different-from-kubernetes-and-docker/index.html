@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#前言">前言</a></div>
+        
+        <div style="margin-left: 0px"><a href="#podman-是什么">podman 是什么</a></div>
+        
+        <div style="margin-left: 0px"><a href="#和-kubernetes-的区别">和 kubernetes 的区别</a></div>
+        
+        <div style="margin-left: 0px"><a href="#和-docker-的区别">和 docker 的区别</a></div>
+        
+        <div style="margin-left: 0px"><a href="#为什么选-podman">为什么选 podman</a></div>
+        
+        <div style="margin-left: 0px"><a href="#最后聊聊-podman-所在的-https-github-com-containers-组织">最后聊聊 podman 所在的 https:&#x2f;&#x2f;github.com&#x2f;containers 组织</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-04-27T16:30:35+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;what-is-podman-and-different-from-kubernetes-and-docker&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;what-is-podman-and-different-from-kubernetes-and-docker&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;what-is-podman-and-different-from-kubernetes-and-docker&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="前言">前言</h2>
+<p>大家好,我是 Liangdi, podman 4.x 版本已经发布了, 我也从 docker 开始向 podman 迁移, 所以是合适的时候写点 podman 的文章了.</p>
+<h2 id="podman-是什么">podman 是什么</h2>
+<p>官方网站: <a href="https://podman.io">podman.io</a></p>
+<p>官方自己的介绍: https://podman.io/whatis.html</p>
+<p>名称 <code>podman</code> ,官方说明是 <code>Pod Manager</code> , 所以它不仅可以管理 OCI 容器,还可以管理 pod , 这也是和 docker 的最大差别吧.</p>
+<h2 id="和-kubernetes-的区别">和 kubernetes 的区别</h2>
+<p>kubernetes(k8s) 是目前最流行的容器编排工具, 集群管理工具, 生态很完善, 也很<code>"重"</code>, pod 的概念就来自 k8s , 虽然 podman 也是管理 pod, 但是远远不及 k8s 的编排功能, 同时 podman 也没有集群管理功能,如果需要管理集群, 需要第三方工具完成.</p>
+<p>所以 podman 定位也不是编排和集群管理工具, 紧紧是一个 pod 和容器的管理工具. 所以不是一个级别的东西, 这里不做太多的比较.</p>
+<h2 id="和-docker-的区别">和 docker 的区别</h2>
+<p>如果仅仅从 <code>docker</code> 和 <code>podman</code> 两个命令提供的功能来讲,它们功能交集很大, podman 官方甚至推荐 <code>alias docker=podman</code> 来过渡.</p>
+<ul>
+<li>docker 文档更齐全,  podman 可以借用一下 docker 的文档</li>
+<li>docker 生态更加完善, podman 一时半会赶不上,但是如果你只是去跑容器, 那这是一样的</li>
+<li>docker 有 docker-compose, podman 早期没有对应工具,后面也出了 podman-compose, 但是这个功能是否必须? 值得考虑,因为 podman 支持 pod 管理.</li>
+<li>docker 有 machine , 让 windows 和 mac 支持 linux 容器, podman 也支持,而且已经比较完善.</li>
+<li>docker 有 docker-desktop , podman-desktop 目前还比较简单.</li>
+<li>docker 支持 rest api , podman 也支持 rest api, 这使得开发生态工具会比较简单.</li>
+<li>docker 有 swarm 支持集群部署, podman 没有对应工具, 不过支持 remote , 调用远程机器上的 podman service 执行对应的功能 , 这样能满足很多轻量化的场景.</li>
+<li>k8s 之前支持使用 docker-shim 和 docker 集成, 不过新版本也放弃这一层, 直接通过 CRI 调用 contained , podman 也不支持 CRI. 并且也没有什么计划.</li>
+<li>docker 商业/开源并行, podman 只有开源版本, 目前没有哪家公司提供商业支持(不清楚 redhat 有没有对应的服务,可能集成在订阅里面了).</li>
+</ul>
+<h2 id="为什么选-podman">为什么选 podman</h2>
+<p>上面讲了不少 docker 比 podman 有优势的方面, 这里开始讲 podman 的另外的东西, 这也是我选择 podman 主要原因.</p>
+<p>先罗列一下 podman 适合的场景</p>
+<ul>
+<li>没有很强的集群管理需求(或者说,已经有 overlay network 方案, podman 也是适用的)</li>
+<li>仅仅为了容器化一些应用</li>
+<li>团队内部轻量级使用,比如 ci/cd , 开发,测试环境等.</li>
+<li>喜欢命令行或者脚本运维</li>
+<li>感兴趣 podman 的生态建设(坑)</li>
+</ul>
+<p>那么 podman 比 docker 好的方面有哪些呢?</p>
+<ul>
+<li>更加 rootless , 尽管 docker 也可以 rootless, 但是 podman 设计之初就开始支持</li>
+<li>没有 daemon , 这使得 podman 在结合 namespace 和 cgroup 一起使用会更加灵活</li>
+<li>pod , 和 k8s 基本一样的 pod , 一样支持 infra 容器. 这使得一些简单的容器<code>编排</code> 工作, podman 也可以简单实现.</li>
+<li>systemd service 集成, 由于没有 deamon , podman 通过 generate 子命令, 可以生成 systemd service 配置, 来管理容器和 pod 的作为服务启动.</li>
+<li>k8s 关联, podman 可以生成 kubectl 的 yaml 配置文件, 也通过 podman play kube 来运行 k8s 的配置, 也可以作为 k8s 的一个过渡吧, 而且 podman 也没有去实现 CRI 的计划, 这应该也是官方的态度, 不会参和到 k8s 生态中, 保持自己的轻量化工具的定位吧.</li>
+<li>remote , podman 通过 ssh 隧道或者 tcp 端口, 可以连接到远程机器上的 podman service, 从而实现远程机器上的容器和 pod 管理.</li>
+</ul>
+<p>所以 podman 提供了一些轻量化而又灵活的功能特性,满足容器化,以及小批量服务器的场景.</p>
+<h2 id="最后聊聊-podman-所在的-https-github-com-containers-组织">最后聊聊 podman 所在的 <code>https://github.com/containers</code> 组织</h2>
+<p>查看这个组织的仓库可以看到,他们真的是在做容器工具, 而且写了很多轮子, 包括 buildah 和 skopeo 这两个工具,与 podman 一起被称为下一代容器工具.</p>
+<p>runc 是一个有名的 low-level OCI rumtime, 他们就开发了一个 crun . podman 早期版本使用 runc, 最新的版本已经使用 crun 了.</p>
+<p>众所周知, golang 是容器生态的主要语言, podman 也是 go 写的,但是在 podman 4 的版本中, podman 增加了非 CNI 的网络栈支持, 这几个工具是 netavark 和 aardvark-dns, 这两个工具是 rust 写的, 而且还有 youki 这个 rust 写的 low-level OCI runtime, 不知道将来某一天 podman 会不会默认使用 youki , 还有好几个 rust 写的容器技术相关的应用和库, 这是要与 golang 分天下的节奏.</p>
+<p>如果你也对 podman 以及其生态感兴趣, 关注我吧, 我会给你带来 podman 最新的动态以及实践方案.</p>
+<p>我的技术 Blog:<a href="https://liangdi.me">https://liangdi.me</a></p>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/simple-rust-crawler-technology-research/" title="一次简单的 rust 爬虫开发技术调研">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">一次简单的 rust 爬虫开发技术调研</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/a-tiny-app-migrate-from-java-to-rust/" title="记录一次 java 小项目的 rust 迁移过程">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">记录一次 java 小项目的 rust 迁移过程</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

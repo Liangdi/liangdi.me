@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>web | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+
+
+
+<div class="max-w-[65ch] mt-4 mx-auto">
+
+  <div class="md:basis-[200px] lg:basis-[300px] p-4 prose dark:prose-invert">
+    <h1 class="text-2xl">web</h1>
+    <p class="text-sm">1 篇文章</p>
+    
+    <div class="flex flex-wrap gap-4 mt-6">
+      
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  
+
+  <div class="flex-1">
+    
+    <div class="dream-zen-posts px-4 space-y-8">
+      
+      <a class="flex justify-between items-center gap-4" href="/p/2023-rust-web-frameworks/">
+  <div>
+    <h2 class="text-lg font-medium underline">2023 年可以关注的 Rust Web 框架(后端)</h2>
+    <span class="date text-base-content/60 text-sm">
+      
+      <span data-format="luxon">2023-01-28T01:33:57+08:00</span>
+      
+    </span>
+  </div>
+  
+</a>
+      
+    </div>
+    
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rust 黑客编程 - ICMP 协议 ping 的简单实现 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/rust-hacking-programing-icmp-ping/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#概述">概述</a></div>
+        
+        <div style="margin-left: 0px"><a href="#准备工作">准备工作</a></div>
+        
+        <div style="margin-left: 0px"><a href="#预备知识">预备知识</a></div>
+        
+        <div style="margin-left: 0px"><a href="#实现思路">实现思路</a></div>
+        
+        <div style="margin-left: 0px"><a href="#编码实现">编码实现</a></div>
+        
+        <div style="margin-left: 0px"><a href="#小结">小结</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">Rust 黑客编程 - ICMP 协议 ping 的简单实现</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-06-02T19:30:20+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=Rust 黑客编程 - ICMP 协议 ping 的简单实现&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-icmp-ping&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-icmp-ping&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=Rust 黑客编程 - ICMP 协议 ping 的简单实现 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-icmp-ping&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="概述">概述</h2>
+<p>记得在高中时期打开终端, ping 一个 IP ,这个操作在别人面前就会引来仰望大神的目光.</p>
+<p>后来知道了底层是 ICMP 协议,然后就没有然后了, 仅停留在知道的层面, 入坑 Rust 以来,也没有什么特别的项目去做, 就从这方面入手,重温一下高中时期学习"黑客"技术时的热情,毕竟兴趣是最好的老师!</p>
+<h2 id="准备工作">准备工作</h2>
+<p>Rust 网络操作的库,不算很多, 这里使用 pnet 这个库,基于 pcap.</p>
+<p>测试抓包工具使用 wireshark</p>
+<h2 id="预备知识">预备知识</h2>
+<ul>
+<li>Wiki 参考: https://zh.wikipedia.org/wiki/%E4%BA%92%E8%81%94%E7%BD%91%E6%8E%A7%E5%88%B6%E6%B6%88%E6%81%AF%E5%8D%8F%E8%AE%AE</li>
+<li>ICMP 协议属于 3 层网络, 包含在 IP 数据包中, 所以我们要构建的数据包格式: IP头部|ICMP头部|ICMP数据</li>
+<li>ICMP 报文使用 Type 和 Code 的组合区分不同的类型</li>
+<li>根据 Wiki 的说明, 程序将使用 Type = 0 的数据包(Echo Reply) 和 Type = 8 的数据包 (Echo Request)</li>
+</ul>
+<p><img src="/p/rust-hacking-programing-icmp-ping/icmp.png" alt="" />ICMP</p>
+<p>这里我们使用 IPv4 协议</p>
+<h2 id="实现思路">实现思路</h2>
+<ul>
+<li>pnet 可以实现 2,3,4 层的数据包操作</li>
+<li>pnet 提供了各层数据包的协议的封装</li>
+<li>在此应用中,可以使用 <code>transport_channel</code> 创建网络的通讯通道,使用其 rx 接收数据包, tx 发送数据包.</li>
+</ul>
+<h2 id="编码实现">编码实现</h2>
+<p>创建项目, 并且添加基本以来 cargo add 的功能来自 cargo-edit 这个项目, 如果系统没有,可以使用 cargo install cargo-edit 安装该功能</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> new icmp-demo</span>
+<span class="meta function-call shell"><span class="support function cd shell">cd</span></span><span class="meta function-call arguments shell"> icmp-demo</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add pnet</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add pnet_transport</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add rand</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add anyhow</span>
+</span></code></pre>
+<p>Demo 代码</p>
+<pre><code class="language-rust"><span class="source rust"><span class="keyword other rust">use</span> <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="meta path rust">net<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>IpAddr</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">time<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>Instant<span class="punctuation separator rust">,</span> Duration</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">sync<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>Arc<span class="punctuation separator rust">,</span> RwLock</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> env</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet<span class="punctuation accessor rust">::</span></span><span class="meta path rust">packet<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="meta path rust">ip<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>IpNextHeaderProtocols<span class="punctuation separator rust">,</span></span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">icmp<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>IcmpTypes<span class="punctuation separator rust">,</span> <span class="meta path rust">echo_request<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>IcmpCodes<span class="punctuation separator rust">,</span> MutableEchoRequestPacket</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">echo_reply<span class="punctuation accessor rust">::</span></span>EchoReplyPacket</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> util<span class="punctuation separator rust">,</span> Packet</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet_transport<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>transport_channel<span class="punctuation separator rust">,</span> TransportProtocol</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet_transport<span class="punctuation accessor rust">::</span></span><span class="meta path rust">TransportChannelType<span class="punctuation accessor rust">::</span></span>Layer4<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet_transport<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>icmp_packet_iter</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">rand<span class="punctuation accessor rust">::</span></span>random<span class="punctuation terminator rust">;</span>
+
+<span class="storage type rust">const</span> <span class="constant other rust">ICMP_SIZE</span><span class="punctuation separator rust">:</span><span class="storage type rust">usize</span> <span class="keyword operator rust">=</span> <span class="constant numeric integer decimal rust">64</span><span class="punctuation terminator rust">;</span>
+
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta path rust">anyhow<span class="punctuation accessor rust">::</span></span><span class="meta generic rust">Result<span class="punctuation definition generic begin rust">&lt;</span><span class="punctuation section group begin rust">(</span><span class="punctuation section group end rust">)</span><span class="punctuation definition generic end rust">&gt;</span></span></span></span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="storage type rust">let</span> args<span class="punctuation separator rust">:</span> <span class="meta generic rust">Vec<span class="punctuation definition generic begin rust">&lt;</span>String<span class="punctuation definition generic end rust">&gt;</span></span> <span class="keyword operator rust">=</span> <span class="meta path rust">env<span class="punctuation accessor rust">::</span></span>args<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">collect</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="keyword control rust">if</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>args.<span class="support function rust">len</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">&lt;</span> <span class="constant numeric integer decimal rust">2</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="support macro rust">panic!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Usage: icmp-demo target_ip<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    <span class="storage type rust">let</span> target_ip<span class="punctuation separator rust">:</span>IpAddr <span class="keyword operator rust">=</span> args<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant numeric integer decimal rust">1</span><span class="punctuation section group end rust">]</span></span>.<span class="support function rust">parse</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>icpm echo request to target ip:<span class="constant other placeholder rust">{:#?}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>target_ip<span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 确定协议 并且创建数据包通道 tx 为发送通道, rx 为接收通道
+</span>    <span class="storage type rust">let</span> protocol <span class="keyword operator rust">=</span> Layer4<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">TransportProtocol<span class="punctuation accessor rust">::</span></span>Ipv4<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">IpNextHeaderProtocols<span class="punctuation accessor rust">::</span></span>Icmp</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="storage modifier rust">mut</span> tx<span class="punctuation separator rust">,</span> <span class="storage modifier rust">mut</span> rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="keyword control rust">match</span> <span class="support function rust">transport_channel</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">4096</span><span class="punctuation separator rust">,</span> protocol</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+            <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>tx<span class="punctuation separator rust">,</span> rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>tx<span class="punctuation separator rust">,</span> rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
+            <span class="support type rust">Err</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>e</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="keyword control rust">return</span>  <span class="support type rust">Err</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>e.<span class="support function rust">into</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+        
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 将 rx 接收到的数据包传化为 iterator
+</span>    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> iter <span class="keyword operator rust">=</span> <span class="support function rust">icmp_packet_iter</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="keyword control rust">loop</span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> icmp_header<span class="punctuation separator rust">:</span><span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="storage type rust">u8</span><span class="punctuation separator rust">;</span><span class="constant other rust">ICMP_SIZE</span><span class="punctuation section group end rust">]</span></span> <span class="keyword operator rust">=</span> <span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant numeric integer decimal rust">0</span><span class="punctuation separator rust">;</span><span class="constant other rust">ICMP_SIZE</span><span class="punctuation section group end rust">]</span></span><span class="punctuation terminator rust">;</span>
+        <span class="storage type rust">let</span> icmp_packet <span class="keyword operator rust">=</span> <span class="support function rust">create_icmp_packet</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> icmp_header</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> println!(&quot;icmp_packet:{:?}&quot;,icmp_packet);
+</span>        <span class="storage type rust">let</span> timer <span class="keyword operator rust">=</span> <span class="meta path rust">Arc<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">RwLock<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">Instant<span class="punctuation accessor rust">::</span></span>now<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 发送 ICMP 数据包
+</span>        tx.<span class="support function rust">send_to</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>icmp_packet<span class="punctuation separator rust">,</span> target_ip</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+
+        <span class="keyword control rust">match</span> iter.<span class="support function rust">next</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+            <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 匹配 EchoReplyPacket 数据包
+</span>            <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>packet<span class="punctuation separator rust">,</span> addr</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="keyword control rust">match</span> <span class="meta path rust">EchoReplyPacket<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span>packet.<span class="support function rust">packet</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+                <span class="support type rust">Some</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>echo_reply</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+                    <span class="keyword control rust">if</span> packet.<span class="support function rust">get_icmp_type</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span><span class="keyword operator rust">=</span> <span class="meta path rust">IcmpTypes<span class="punctuation accessor rust">::</span></span>EchoReply <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+                        <span class="storage type rust">let</span> start_time <span class="keyword operator rust">=</span> timer.<span class="support function rust">read</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+                        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>let identifier = echo_reply.get_identifier();
+</span>                        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>let sequence_number =  echo_reply.get_sequence_number();
+</span>                        <span class="storage type rust">let</span> rtt <span class="keyword operator rust">=</span> <span class="meta path rust">Instant<span class="punctuation accessor rust">::</span></span>now<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">duration_since</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">*</span>start_time</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+                        <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust">
+                            <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>ICMP EchoReply received from <span class="constant other placeholder rust">{:?}</span>: <span class="constant other placeholder rust">{:?}</span> , Time:<span class="constant other placeholder rust">{:?}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>
+                            addr<span class="punctuation separator rust">,</span>
+                            packet.<span class="support function rust">get_icmp_type</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
+                            rtt
+                        <span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+                    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span> <span class="keyword control rust">else</span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+                        <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust">
+                            <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>ICMP type other than reply (0) received from <span class="constant other placeholder rust">{:?}</span>: <span class="constant other placeholder rust">{:?}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>
+                            addr<span class="punctuation separator rust">,</span>
+                            packet.<span class="support function rust">get_icmp_type</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+                        <span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+                    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+                </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+                <span class="support type rust">None</span> <span class="keyword operator rust">=&gt;</span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span></span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+            </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span>
+            <span class="support type rust">Err</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>e</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+                <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>An error occurred while reading: <span class="constant other placeholder rust">{}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span> e<span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+            </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+        </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+
+        <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">thread<span class="punctuation accessor rust">::</span></span>sleep<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">Duration<span class="punctuation accessor rust">::</span></span>from_millis<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">500</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+
+    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+<span class="comment block documentation rust"><span class="punctuation definition comment rust">/**
+</span> * 创建 icmp EchoRequest 数据包
+ <span class="punctuation definition comment rust">*/</span></span>
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">create_icmp_packet</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span><span class="storage modifier lifetime rust">&#39;a</span><span class="punctuation definition generic end rust">&gt;</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">icmp_header</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage modifier lifetime rust">&#39;a</span> <span class="storage modifier rust">mut</span> [<span class="storage type rust">u8</span>]</span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">MutableEchoRequestPacket<span class="punctuation definition generic begin rust">&lt;</span><span class="storage modifier lifetime rust">&#39;a</span><span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> icmp_packet <span class="keyword operator rust">=</span> <span class="meta path rust">MutableEchoRequestPacket<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span>icmp_header</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    icmp_packet.<span class="support function rust">set_icmp_type</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">IcmpTypes<span class="punctuation accessor rust">::</span></span>EchoRequest</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    icmp_packet.<span class="support function rust">set_icmp_code</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">IcmpCodes<span class="punctuation accessor rust">::</span></span>NoCode</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    icmp_packet.<span class="support function rust">set_identifier</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">random<span class="punctuation accessor rust">::</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span><span class="storage type rust">u16</span><span class="punctuation definition generic end rust">&gt;</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    icmp_packet.<span class="support function rust">set_sequence_number</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">1</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> checksum <span class="keyword operator rust">=</span> <span class="meta path rust">util<span class="punctuation accessor rust">::</span></span>checksum<span class="meta group rust"><span class="punctuation section group begin rust">(</span>icmp_packet.<span class="support function rust">packet</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="constant numeric integer decimal rust">1</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    icmp_packet.<span class="support function rust">set_checksum</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>checksum</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    icmp_packet
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+</span></code></pre>
+<p>测试</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> build</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 由于使用了 pcap 需要 root 权限</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> ./target/debug/icmp-demo 114.114.114.114</span>
+</span></code></pre>
+<p>运行结果</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">[liangdi@liangdi-x395</span></span><span class="meta function-call arguments shell"> icmp-demo]$ sudo ./target/debug/icmp-demo 114.114.114.114</span>
+<span class="meta function-call shell"><span class="variable function shell">icpm</span></span><span class="meta function-call arguments shell"> echo request to target ip:114.114.114.114</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:14.525838ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:9.570341ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:11.355756ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:12.618713ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:15.448623ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:11.289961ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:11.169053ms</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 114.114.114.114: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:13.064115ms</span>
+
+</span></code></pre>
+<p>wireshark 中的结果(wireshark 可以直接使用 icmp 这个过滤器过滤数据包)</p>
+<p><img src="/p/rust-hacking-programing-icmp-ping/icmp-wireshark.png" alt="" />ICMP wireshark</p>
+<p>如果做以下测试,结果会是另外一种景象</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> ./target/debug/icmp-demo 127.0.0.1</span>
+</span></code></pre>
+<p>输出结果:</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">[liangdi@liangdi-x395</span></span><span class="meta function-call arguments shell"> icmp-demo]$ sudo ./target/debug/icmp-demo 127.0.0.1</span>
+<span class="meta function-call shell"><span class="variable function shell">icpm</span></span><span class="meta function-call arguments shell"> echo request to target ip:127.0.0.1</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> type other than reply (0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">received</span></span><span class="meta function-call arguments shell"> from 127.0.0.1: IcmpType(8</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 127.0.0.1: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:72.817µs</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> type other than reply (0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">received</span></span><span class="meta function-call arguments shell"> from 127.0.0.1: IcmpType(8</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 127.0.0.1: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:75.443µs</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> type other than reply (0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">received</span></span><span class="meta function-call arguments shell"> from 127.0.0.1: IcmpType(8</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 127.0.0.1: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:77.316µs</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> type other than reply (0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">received</span></span><span class="meta function-call arguments shell"> from 127.0.0.1: IcmpType(8</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 127.0.0.1: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:79.861µs</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> type other than reply (0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">received</span></span><span class="meta function-call arguments shell"> from 127.0.0.1: IcmpType(8</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span>
+<span class="meta function-call shell"><span class="variable function shell">ICMP</span></span><span class="meta function-call arguments shell"> EchoReply received from 127.0.0.1: IcmpType(0</span><span class="meta function-call shell"></span><span class="meta post-cmd shell">)</span> <span class="meta function-call shell"><span class="variable function shell">,</span></span><span class="meta function-call arguments shell"> Time:78.057µs</span>
+
+</span></code></pre>
+<p>可以看到输出了 IcmpType(8) 的数据包, 这就是 EchoRequest 的类型, 由于我们监听了本地的数据包接收通道,所以发往 127.0.0.1 的数据包也被解析了.</p>
+<h2 id="小结">小结</h2>
+<p>Demo 简单的实现了 icmp echo request 的请求和回显功能, 相比 ping 的功能还相差很多, 不过基本了解了 pnet 这个包的使用方式,以及了解了 ICMP 协议的基本用法, 进阶使用就留给大家思考,其中一些想法会在后续文章中再去实现.</p>
+<ul>
+<li>ping 命令有很多参数, 比如设置 icmp 数据包大小 , 请求次数等, 这些可以进阶去实现.</li>
+<li>ping 可以直接解析域名, demo 中为做处理, 所以无法直接使用域名.</li>
+<li>demo 中使用 Layer4 层发送数据包,所以隐藏了 IP 层的信息, 可以使用 Layer3 层发送,然后就可以自己构造 IP 头, 实现诸如 IP 伪装等功能.</li>
+<li>ICMP 可以发送一定的 payload ,所以 icmp flood 怎么实现?</li>
+<li>Ping of death (古老的漏洞)  怎么实现?</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/rust-hacking-programing-syn-flood-ddos/" title="Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/run-wordpress-6-arturo-with-podman/" title="使用 Podman 运行 WordPress 6 Arturo">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">使用 Podman 运行 WordPress 6 Arturo</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

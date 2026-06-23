@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Podman 运行 WordPress 6 Arturo | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/run-wordpress-6-arturo-with-podman/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#前言">前言</a></div>
+        
+        <div style="margin-left: 0px"><a href="#认知准备">认知准备</a></div>
+        
+        <div style="margin-left: 0px"><a href="#安装过程">安装过程</a></div>
+        
+        <div style="margin-left: 12px"><a href="#网络">网络</a></div>
+        
+        <div style="margin-left: 12px"><a href="#mysql">MySQL</a></div>
+        
+        <div style="margin-left: 12px"><a href="#wordpress">Wordpress</a></div>
+        
+        <div style="margin-left: 0px"><a href="#总结">总结</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">使用 Podman 运行 WordPress 6 Arturo</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-06-02T12:37:58+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=使用 Podman 运行 WordPress 6 Arturo&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;run-wordpress-6-arturo-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;run-wordpress-6-arturo-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=使用 Podman 运行 WordPress 6 Arturo https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;run-wordpress-6-arturo-with-podman&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="前言">前言</h2>
+<p>今天看到 WordPress 6 <a href="https://wordpress.org/news/2022/05/arturo/">发布</a>了,回想多年以前在使用 WordPress 的时候,一顿 yum 命令安装 nginx, php, mysql, php-fpm , 然后再配置 nginx, 经过一阵子配置, WordPress 就运行成功了, 如今在云原生时代, 可以用 k8s , docker , Podman 等工具来安装这些系统了, 今天就使用 Podman 安装 WordPress , 人生苦短, 我用 podman !</p>
+<h2 id="认知准备">认知准备</h2>
+<ul>
+<li>这次是安装一个业务系统(WordPress) , 所以不象一些 hello world 的文章, 更多要关注底层的一些东西</li>
+<li>网络(network): WordPress 要和 mysql 连接, 所以需要网络支持</li>
+<li>数据卷(volume): mysql 数据要保存, WordPress 的文章数据保存在数据库中,但是插件/主题,上传图片等都是保存在文件系统中, 文件系统的内容要保存下来, 就要使用到数据卷功能.</li>
+<li>使用 Podman 4.1.0 版本</li>
+</ul>
+<h2 id="安装过程">安装过程</h2>
+<h3 id="网络">网络</h3>
+<p>使用 podman network ls , 可以查看 Podman 的网络列表, 默认会有一个 Podman 的网络, 这里我们会创建一个新的网络叫做 <code>wp-net</code> , 使用如下命令:</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> network create wp-net</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 使用 podman network inspect 命令查看网络信息</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> network inspect wp-net</span>
+</span></code></pre>
+<p>输出内容</p>
+<pre><code class="language-bash"><span class="source shell bash">    <span class="punctuation definition compound braces begin shell">{</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>name<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>wp-net<span class="punctuation definition string end shell">&quot;</span></span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>id<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>a47201502d7f6450e7fda6c1ce7e449418350cb2b668feca2cf7d5048cb336cc<span class="punctuation definition string end shell">&quot;</span></span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>driver<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>bridge<span class="punctuation definition string end shell">&quot;</span></span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>network_interface<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>cni-podman2<span class="punctuation definition string end shell">&quot;</span></span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>created<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>2022-06-02T10:45:05.864113967+08:00<span class="punctuation definition string end shell">&quot;</span></span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>subnets<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="keyword control regexp set begin shell">[</span>
+               <span class="meta group expansion brace shell"><span class="punctuation section expansion brace begin shell">{</span>
+                    <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>subnet<span class="punctuation definition string end shell">&quot;</span></span>: <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>10.89.1.0/24<span class="punctuation definition string end shell">&quot;</span></span><span class="punctuation separator shell">,</span>
+                    <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>gateway<span class="punctuation definition string end shell">&quot;</span></span>: <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>10.89.1.1<span class="punctuation definition string end shell">&quot;</span></span>
+               <span class="punctuation section expansion brace end shell">}</span></span>
+          <span class="keyword control regexp set end shell">]</span>,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>ipv6_enabled<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> false,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>internal<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> false,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>dns_enabled<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> true,</span>
+          <span class="meta function-call shell"><span class="variable function shell"><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>ipam_options<span class="punctuation definition string end shell">&quot;</span></span>:</span></span><span class="meta function-call arguments shell"> <span class="meta group expansion brace shell"><span class="punctuation section expansion brace begin shell">{</span>
+               <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>driver<span class="punctuation definition string end shell">&quot;</span></span>: <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>host-local<span class="punctuation definition string end shell">&quot;</span></span>
+          <span class="punctuation section expansion brace end shell">}</span></span></span>
+     <span class="punctuation definition compound braces end shell">}</span>
+<span class="meta function-call shell"><span class="variable function shell">]</span></span>
+
+</span></code></pre>
+<h3 id="mysql">MySQL</h3>
+<p>创建好 wp-net, 后,我们创建 mysql 容器,并且把它加入到 wp-net 中 , 命令如下:</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建存放 mysql 数据的临时目录</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">mkdir</span></span><span class="meta function-call arguments shell"><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>p</span> /tmp/mysql-data</span>
+
+<span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> mysql <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    --</span>net</span> wp-net <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> MYSQL_ROOT_PASSWORD=my-password <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>v</span> /tmp/mysql-data:/var/lib/mysql <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>d</span> docker.io/library/mysql:8</span>
+</span></code></pre>
+<p>说明:</p>
+<ul>
+<li>--net wp-net 参数就是把创建的 mysql 容器加入到 wp-net 这个网络中, 并且使用 --name mysql , 这样网络中的其他容器就能使用 <code>mysql</code> 这个网络名,解析出 mysql 容器的 ip 了, 也可以使用 --hostname 参数来指定网络主机名.</li>
+<li>-e MYSQL_ROOT_PASSWORD 设定 mysql root 密码</li>
+<li>-v /tmp/mysql-data:/var/lib/mysql 将主机的 /tmp/mysql-data 目录映射到容器中 /var/lib/mysq 目录, 这就是数据卷(volume) 的功能,这样数据就可以保存到主机中,这里在 tmp 目录创建方便临时测试,volume 功能也可以使用 podman volume 命令创建命名的数据卷.</li>
+<li>这里没有使用 -p 3306:3306 类似的端口映射参数,因为我们 host 不需要去访问 mysql ,容器网络中访问不需要映射端口.</li>
+</ul>
+<p>创建好 mysql 容器后可以使用以下命令做些检查</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 使用 ps 命令可以查看运行中的容器, 这里应该可以看到 mysql 容器</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> ps </span>
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 使用 exec 命令可以运行容器中的程序, 这里运行 bash ,就可以进入容器的 bash 中运行其他命令了.</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> exec<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>it</span> mysql bash</span>
+</span></code></pre>
+<h3 id="wordpress">Wordpress</h3>
+<p>mysql 容器运行后,就可以去创建 WordPress 了, WordPress 镜像的详细信息可以去 docker hub 去看: https://hub.docker.com/_/wordpress</p>
+<p>WordPress 中会用到的配置主要是: 数据连接信息, 可变的内容主要是 wp-conent 目录下的主题/插件,上传文件信息, 如果你不去使用环境变量配置数据库信息, 那么动态配置的 wp-config.php 也是可变的.</p>
+<p>运行 WordPress 的容器命令如下:</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 我们先用最简单的命令运行 wordpress 容器, 尽快见一下久违的 wordpress</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> wordpress <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    --</span>net</span> wp-net <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>p</span> 8080:80 <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>d</span> docker.io/library/wordpress:6</span>
+</span></code></pre>
+<p>创建好后, 我们就可以访问 http://localhost:8080/ 我见证 WordPress 的安装了, 因为没有配置数据库信息,所以 WordPress 进入了数据库配置页面:
+<img src="/p/run-wordpress-6-with-podman/wp-install-1.png" alt="" />配置 wordpress</p>
+<p><img src="/p/run-wordpress-6-with-podman/wp-install-2.png" alt="" />配置 wordpress</p>
+<p>这里 database host 只需要填写 <code>mysql</code> 即可, 容器中会自动解析 mysql 容器的 ip.</p>
+<p>WordPress 不会主动去创建数据库,所以我们需要进入 mysql 容器去创建一个 <code>wordpress</code> 的数据库. 命令如下:</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 进入容器</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> exec<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>it</span> mysql bash</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 使用 root 密码 my-password 登陆数据库</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">mysql</span></span><span class="meta function-call arguments shell"><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>u</span> root<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>p</span></span>
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建数据库</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">create</span></span><span class="meta function-call arguments shell"> database <span class="meta group expansion command backticks shell"><span class="punctuation section group begin shell">`</span><span class="meta function-call shell"><span class="variable function shell">wordpress</span></span><span class="punctuation section group end shell">`</span></span></span><span class="keyword operator logical continue shell">;</span> 
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell">完成后就可以退出了,继续下一步安装 wordpress</span><span class="comment line number-sign shell">
+</span></span></code></pre>
+<p><img src="/p/run-wordpress-6-with-podman/wp-install-3.png" alt="" />配置 wordpress</p>
+<p><img src="/p/run-wordpress-6-with-podman/wp6-1.png" alt="" />配置 wordpress</p>
+<p><img src="/p/run-wordpress-6-with-podman/wp6-2.png" alt="" />配置 wordpress</p>
+<p>到此, WordPress 6 测试安装完成了.</p>
+<p>上面创建的 WordPress 容器没有使用数据卷功能, 那么如果你上传了一些图片信息,安装了一些插件,这些内容都保存在容器里面,如果有一天容器被删除了,也就没有了,我们现在重新创建这个 wordpress 容器,并且使用数据卷功能,将可变的目录映射到 host 中.</p>
+<p>先删除现有的 wordpress 容器</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> rm<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>f</span> wordpress</span>
+</span></code></pre>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 创建用于测试的临时目录</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">mkdir</span></span><span class="meta function-call arguments shell"><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>p</span> /tmp/wordpress/wp-content</span>
+
+<span class="meta function-call shell"><span class="variable function shell">podman</span></span><span class="meta function-call arguments shell"> run<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> --</span>name</span> wordpress <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    --</span>net</span> wp-net <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>p</span> 8080:80 <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>v</span> /tmp/wordpress/wp-content:/var/www/html/wp-content/ <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> WORDPRESS_DB_HOST=mysql <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> WORDPRESS_DB_USER=root <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> WORDPRESS_DB_PASSWORD=my-password <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> WORDPRESS_DB_NAME=wordpress <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>e</span> WORDPRESS_TABLE_PREFIX=wp_ <span class="punctuation separator continuation line shell">\
+</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell">    -</span>d</span> docker.io/library/wordpress:6</span>
+</span></code></pre>
+<p>现在我们去看 /tmp/wordpress/wp-content 目录, 可以看到已经有相关目录出现在其中了,这样容器即使被销毁,这些数据也是保存在 host 中了.
+<img src="/p/run-wordpress-6-with-podman/wp-install-4.png" alt="" />配置 wordpress</p>
+<h2 id="总结">总结</h2>
+<p>5-10 分钟就将 WordPress 安装好了, 基本不需要去做系统配置(nginx,php,mysql). 这正式容器技术带来的便利.</p>
+<p>文章中使用了 Podman 的基本功能, 有以下方面需要注意</p>
+<ul>
+<li>Podman 容器默认不会跟随系统启动, 需要配合 systemd 服务启动, 具体可以查看 https://docs.podman.io/en/latest/markdown/podman-generate-systemd.1.html</li>
+<li>数据卷(volume) 更多功能使用 podman volume --help 命令查看, 可以配置 nfs 的 volume 等.</li>
+<li>应用和数据库组合的容器组可以使用 podman-comose 实现, 也可以使用 Podman 的 pod 功能实现,具体查看官方文档.</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/rust-hacking-programing-icmp-ping/" title="Rust 黑客编程 - ICMP 协议 ping 的简单实现">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">Rust 黑客编程 - ICMP 协议 ping 的简单实现</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/simple-rust-crawler-technology-research/" title="一次简单的 rust 爬虫开发技术调研">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">一次简单的 rust 爬虫开发技术调研</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

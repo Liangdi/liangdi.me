@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<id>https://liangdi.me</id>
+<title>Liangdi&#x27;s Blog</title>
+<link rel="self" href="https://liangdi.me/zh/rss.xml"/>
+
+<entry>
+<title>2023 年可以关注的 Rust Web 框架(后端)</title>
+<link href="https://liangdi.me/p/2023-rust-web-frameworks/"/>
+<id>https://liangdi.me/p/2023-rust-web-frameworks/</id>
+<published>2023-01-28T01:33:57+08:00</published>
+<updated>2023-01-28T01:33:57+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>Rust 项目鉴赏: zellij 替代 screen, tmux 的终端工具</title>
+<link href="https://liangdi.me/p/rust-project-review-zellij/"/>
+<id>https://liangdi.me/p/rust-project-review-zellij/</id>
+<published>2023-01-23T21:44:12+08:00</published>
+<updated>2023-01-23T21:44:12+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门</title>
+<link href="https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/"/>
+<id>https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/</id>
+<published>2022-06-03T16:01:32+08:00</published>
+<updated>2022-06-03T16:01:32+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>Rust 黑客编程 - ICMP 协议 ping 的简单实现</title>
+<link href="https://liangdi.me/p/rust-hacking-programing-icmp-ping/"/>
+<id>https://liangdi.me/p/rust-hacking-programing-icmp-ping/</id>
+<published>2022-06-02T19:30:20+08:00</published>
+<updated>2022-06-02T19:30:20+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>使用 Podman 运行 WordPress 6 Arturo</title>
+<link href="https://liangdi.me/p/run-wordpress-6-arturo-with-podman/"/>
+<id>https://liangdi.me/p/run-wordpress-6-arturo-with-podman/</id>
+<published>2022-06-02T12:37:58+08:00</published>
+<updated>2022-06-02T12:37:58+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>一次简单的 rust 爬虫开发技术调研</title>
+<link href="https://liangdi.me/p/simple-rust-crawler-technology-research/"/>
+<id>https://liangdi.me/p/simple-rust-crawler-technology-research/</id>
+<published>2022-05-06T00:38:25+08:00</published>
+<updated>2022-05-06T00:38:25+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别</title>
+<link href="https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/"/>
+<id>https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/</id>
+<published>2022-04-27T16:30:35+08:00</published>
+<updated>2022-04-27T16:30:35+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>记录一次 java 小项目的 rust 迁移过程</title>
+<link href="https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/"/>
+<id>https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/</id>
+<published>2022-04-26T11:06:35+08:00</published>
+<updated>2022-04-26T11:06:35+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>渐进式云原生实践: 使用 podman 容器化你的应用</title>
+<link href="https://liangdi.me/p/progressive-cloud-native-with-podman/"/>
+<id>https://liangdi.me/p/progressive-cloud-native-with-podman/</id>
+<published>2022-04-23T16:59:14+08:00</published>
+<updated>2022-04-23T16:59:14+08:00</updated>
+<summary></summary>
+</entry>
+
+<entry>
+<title>搜索</title>
+<link href="https://liangdi.me/search/"/>
+<id>https://liangdi.me/search/</id>
+
+<summary></summary>
+</entry>
+
+<entry>
+<title>关于</title>
+<link href="https://liangdi.me/about/"/>
+<id>https://liangdi.me/about/</id>
+
+<summary></summary>
+</entry>
+
+</feed>

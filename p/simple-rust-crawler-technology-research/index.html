@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一次简单的 rust 爬虫开发技术调研 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/simple-rust-crawler-technology-research/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#前言">前言</a></div>
+        
+        <div style="margin-left: 0px"><a href="#爬虫底层关注的技术点">爬虫底层关注的技术点</a></div>
+        
+        <div style="margin-left: 0px"><a href="#http-库">http 库</a></div>
+        
+        <div style="margin-left: 0px"><a href="#html-json-解析">html&#x2f;json 解析</a></div>
+        
+        <div style="margin-left: 0px"><a href="#webdriver-集成">WebDriver 集成</a></div>
+        
+        <div style="margin-left: 0px"><a href="#简单总结">简单总结</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">一次简单的 rust 爬虫开发技术调研</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-05-06T00:38:25+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=一次简单的 rust 爬虫开发技术调研&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;simple-rust-crawler-technology-research&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;simple-rust-crawler-technology-research&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=一次简单的 rust 爬虫开发技术调研 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;simple-rust-crawler-technology-research&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="前言">前言</h2>
+<p>看到标题,是不是觉得我疯了,爬虫,这个时间点应该还轮不到 rust 吧!</p>
+<p>确实,现在成熟的爬虫技术基本使用 python, java 等,那么这篇文章的用意是什么呢? 我先来交代一下背景, 2017 年,我挖了一个坑:
+<a href="https://zhuanlan.zhihu.com/p/24900305">https://zhuanlan.zhihu.com/p/24900305</a></p>
+<p>这个项目后来商用了,所以就不方便继续更新, 到了现在 2022 年了, 各种技术已经迭代了好多次, 那么,我也要重新思考一下一套新的爬虫架构了,这套架构基于云原生,容器化,结合不同语言取长补短,相互配合,简单概括如下:</p>
+<ul>
+<li>爬虫节点容器运行,语言无关,所以会支持 python ,java 等各语言开发的爬虫</li>
+<li>统一的 DAG 任务分发调度节点</li>
+<li>统一的数据集接口</li>
+</ul>
+<p>其中一点是爬虫语言无关,所以会设计统一的输入输出接口,让各语言编写的程序都能在容器中执行, python, java, golang 的爬虫生态都很不错了,文章也很多, rust 这方面比较少,所以这里就写一篇 rust 的文章.</p>
+<h2 id="爬虫底层关注的技术点">爬虫底层关注的技术点</h2>
+<ul>
+<li>http 库</li>
+<li>html 解析</li>
+<li>json 解析</li>
+<li>WebDriver 集成</li>
+</ul>
+<h2 id="http-库">http 库</h2>
+<p>作为爬虫的 http 库, 只要支持 http 协议基本就 ok, 主要是设置 header, 设置 cookies, 设置代理等等.</p>
+<p>rust 的 http 库列表 <a href="https://lib.rs/web-programming/http-client">https://lib.rs/web-programming/http-client</a></p>
+<p>这里使用 reqwest 做个简单的示例</p>
+<pre><code class="language-rust"><span class="source rust"><span class="keyword other rust">use</span> reqwest<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">http<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>HeaderMap<span class="punctuation separator rust">,</span> HeaderValue<span class="punctuation separator rust">,</span> <span class="meta path rust">header<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="constant other rust">COOKIE</span><span class="punctuation separator rust">,</span><span class="constant other rust">USER_AGENT</span></span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">tokio</span>::<span class="variable annotation rust">main</span><span class="punctuation section group end rust">]</span></span>
+async <span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust">  <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">Result<span class="punctuation definition generic begin rust">&lt;</span><span class="punctuation section group begin rust">(</span><span class="punctuation section group end rust">)</span>,<span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>Error<span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> HTML
+</span>    <span class="storage type rust">let</span> url <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>https://ssr1.scrape.center/<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>get<span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Response: <span class="constant other placeholder rust">{:?}</span> <span class="constant other placeholder rust">{}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span> resp.<span class="support function rust">version</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation separator rust">,</span> resp.<span class="support function rust">status</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Headers: <span class="constant other placeholder rust">{:#?}</span><span class="constant character escape rust">\n</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span> resp.<span class="support function rust">headers</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>println!(&quot;Body:{:#?}&quot;,resp.text().await?);
+</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> JSON
+</span>    <span class="storage type rust">let</span> url <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>https://spa1.scrape.center/api/movie/?limit=10&amp;offset=0<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>get<span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> json_body<span class="punctuation separator rust">:</span><span class="meta path rust">serde_json<span class="punctuation accessor rust">::</span></span>Value <span class="keyword operator rust">=</span> resp.<span class="support function rust">json</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Json:<span class="constant other placeholder rust">{:#?}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>json_body<span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> POST
+</span>    <span class="storage type rust">let</span> _resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span><span class="meta path rust">Client<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">post</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">form</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span><span class="meta group rust"><span class="punctuation section group begin rust">[</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>name<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation separator rust">,</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>value<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">]</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">send</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .await<span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> Header
+</span>    <span class="storage type rust">let</span> _resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span><span class="meta path rust">Client<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">post</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">header</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>Auth<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation separator rust">,</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>xxx<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        
+        .<span class="support function rust">send</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .await<span class="punctuation terminator rust">;</span>
+        
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> UserAgent Cookies
+</span>    <span class="storage type rust">let</span> client <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span><span class="meta path rust">Client<span class="punctuation accessor rust">::</span></span>builder<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">cookie_store</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant language rust">true</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">build</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> <span class="storage modifier rust">mut</span> headers <span class="keyword operator rust">=</span> <span class="meta path rust">HeaderMap<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    headers.<span class="support function rust">insert</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant other rust">COOKIE</span><span class="punctuation separator rust">,</span> <span class="meta path rust">HeaderValue<span class="punctuation accessor rust">::</span></span>from_str<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>key=value<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    headers.<span class="support function rust">insert</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="constant other rust">USER_AGENT</span><span class="punctuation separator rust">,</span><span class="meta path rust">HeaderValue<span class="punctuation accessor rust">::</span></span>from_str<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>my user-agent<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> _reps <span class="keyword operator rust">=</span> client.<span class="support function rust">get</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">headers</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>headers</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .<span class="support function rust">send</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+        .await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+</span></code></pre>
+<p>Cargo.toml</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">[dependencies]</span></span>
+<span class="meta function-call shell"><span class="variable function shell">http</span></span><span class="meta function-call arguments shell"> = <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>0.2.7<span class="punctuation definition string end shell">&quot;</span></span></span>
+<span class="meta function-call shell"><span class="variable function shell">reqwest</span></span><span class="meta function-call arguments shell"> = <span class="meta group expansion brace shell"><span class="punctuation section expansion brace begin shell">{</span>version = <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>0.11.10<span class="punctuation definition string end shell">&quot;</span></span><span class="punctuation separator shell">,</span>features = <span class="keyword control regexp set begin shell">[</span><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>json<span class="punctuation definition string end shell">&quot;</span></span>,<span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>cookies<span class="punctuation definition string end shell">&quot;</span></span><span class="keyword control regexp set end shell">]</span> <span class="punctuation section expansion brace end shell">}</span></span></span>
+<span class="meta function-call shell"><span class="variable function shell">serde_json</span></span><span class="meta function-call arguments shell"> = <span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>1.0.81<span class="punctuation definition string end shell">&quot;</span></span></span>
+<span class="meta function-call shell"><span class="variable function shell">tokio</span></span><span class="meta function-call arguments shell"> = <span class="meta group expansion brace shell"><span class="punctuation section expansion brace begin shell">{</span>version =<span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>1.18.2<span class="punctuation definition string end shell">&quot;</span></span><span class="punctuation separator shell">,</span>features = <span class="keyword control regexp set begin shell">[</span><span class="string quoted double shell"><span class="punctuation definition string begin shell">&quot;</span>full<span class="punctuation definition string end shell">&quot;</span></span><span class="keyword control regexp set end shell">]</span> <span class="punctuation section expansion brace end shell">}</span></span></span>
+
+</span></code></pre>
+<h2 id="html-json-解析">html/json 解析</h2>
+<p>采集到 html 和 json 数据后,需要解析出有用的数据, html 内容主要用 css 选择器筛选, json 可以转 map 或者使用 jsonpath 筛选, 这里使用 scraper 和 jsonpath 这两个库做个简单示例.</p>
+<p>Cargo</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add scraper</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add jsonpath</span>
+</span></code></pre>
+<pre><code class="language-rust"><span class="source rust"><span class="keyword other rust">use</span> reqwest<span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> <span class="meta path rust">scraper<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span>Html<span class="punctuation separator rust">,</span> Selector</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">tokio</span>::<span class="variable annotation rust">main</span><span class="punctuation section group end rust">]</span></span>
+async <span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust">  <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">Result<span class="punctuation definition generic begin rust">&lt;</span><span class="punctuation section group begin rust">(</span><span class="punctuation section group end rust">)</span>,<span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>Error<span class="punctuation definition generic end rust">&gt;</span></span></span> </span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> HTML
+</span>    <span class="storage type rust">let</span> url <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>https://ssr1.scrape.center/<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>get<span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>println!(&quot;Body:{:#?}&quot;,resp.text().await?);
+</span>    <span class="storage type rust">let</span> body <span class="keyword operator rust">=</span> resp.<span class="support function rust">text</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> doc <span class="keyword operator rust">=</span> <span class="meta path rust">Html<span class="punctuation accessor rust">::</span></span>parse_fragment<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span>body</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> selector <span class="keyword operator rust">=</span> <span class="meta path rust">Selector<span class="punctuation accessor rust">::</span></span>parse<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>.m-b-sm<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="keyword control rust">for</span> el <span class="keyword operator rust">in</span> doc.<span class="support function rust">select</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span>selector</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>title:<span class="constant other placeholder rust">{}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>el.<span class="support function rust">inner_html</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> JSON
+</span>    <span class="storage type rust">let</span> url <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>https://spa1.scrape.center/api/movie/?limit=10&amp;offset=0<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> resp <span class="keyword operator rust">=</span> <span class="meta path rust">reqwest<span class="punctuation accessor rust">::</span></span>get<span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> json_body<span class="punctuation separator rust">:</span><span class="meta path rust">serde_json<span class="punctuation accessor rust">::</span></span>Value <span class="keyword operator rust">=</span> resp.<span class="support function rust">json</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span>println!(&quot;Json:{:#?}&quot;,json_body);
+</span>    <span class="storage type rust">let</span> json_sel <span class="keyword operator rust">=</span> <span class="meta path rust">jsonpath<span class="punctuation accessor rust">::</span></span><span class="meta path rust">Selector<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>$.results.*.name<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    <span class="keyword control rust">for</span> json_el <span class="keyword operator rust">in</span> json_sel.<span class="support function rust">find</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="keyword operator rust">&amp;</span>json_body</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span> <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>json title:<span class="constant other placeholder rust">{}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>json_el.<span class="support function rust">as_str</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">unwrap</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    
+    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+</span></code></pre>
+<p>运行结果</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">title:霸王别姬</span></span><span class="meta function-call arguments shell"> - Farewell My Concubine</span>
+<span class="meta function-call shell"><span class="variable function shell">title:这个杀手不太冷</span></span><span class="meta function-call arguments shell"> - Léon</span>
+<span class="meta function-call shell"><span class="variable function shell">title:肖申克的救赎</span></span><span class="meta function-call arguments shell"> - The Shawshank Redemption</span>
+<span class="meta function-call shell"><span class="variable function shell">title:泰坦尼克号</span></span><span class="meta function-call arguments shell"> - Titanic</span>
+<span class="meta function-call shell"><span class="variable function shell">title:罗马假日</span></span><span class="meta function-call arguments shell"> - Roman Holiday</span>
+<span class="meta function-call shell"><span class="variable function shell">title:唐伯虎点秋香</span></span><span class="meta function-call arguments shell"> - Flirting Scholar</span>
+<span class="meta function-call shell"><span class="variable function shell">title:乱世佳人</span></span><span class="meta function-call arguments shell"> - Gone with the Wind</span>
+<span class="meta function-call shell"><span class="variable function shell">title:喜剧之王</span></span><span class="meta function-call arguments shell"> - The King of Comedy</span>
+<span class="meta function-call shell"><span class="variable function shell">title:楚门的世界</span></span><span class="meta function-call arguments shell"> - The Truman Show</span>
+<span class="meta function-call shell"><span class="variable function shell">title:狮子王</span></span><span class="meta function-call arguments shell"> - The Lion King</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:霸王别姬</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:这个杀手不太冷</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:肖申克的救赎</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:泰坦尼克号</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:罗马假日</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:唐伯虎点秋香</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:乱世佳人</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:喜剧之王</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:楚门的世界</span>
+<span class="meta function-call shell"><span class="variable function shell">json</span></span><span class="meta function-call arguments shell"> title:狮子王</span>
+</span></code></pre>
+<h2 id="webdriver-集成">WebDriver 集成</h2>
+<p>一些网站由于反爬,构建 http 请求会遇到一些额外问题,那么使用 webdriver 将会是另外一种爬虫解决方案, 这里使用 <code>thirtyfour</code> 这个库</p>
+<p>Cargo</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add thirtyfour</span>
+<span class="meta function-call shell"><span class="variable function shell">cargo</span></span><span class="meta function-call arguments shell"> add tokio</span>
+</span></code></pre>
+<p>先运行 <code>webdriver</code>, 我这里使用 chromedriver , 默认监听 9515 端口</p>
+<p>示例代码</p>
+<pre><code class="language-rust"><span class="source rust">
+<span class="keyword other rust">use</span> <span class="meta path rust">thirtyfour<span class="punctuation accessor rust">::</span></span><span class="meta block rust"><span class="punctuation section block begin rust">{</span><span class="meta path rust">prelude<span class="punctuation accessor rust">::</span></span><span class="keyword operator rust">*</span><span class="punctuation separator rust">,</span> <span class="meta path rust">error<span class="punctuation accessor rust">::</span></span>WebDriverError</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span><span class="punctuation terminator rust">;</span>
+<span class="keyword other rust">use</span> tokio<span class="punctuation terminator rust">;</span>
+
+<span class="meta annotation rust"><span class="punctuation definition annotation rust">#</span><span class="punctuation section group begin rust">[</span><span class="variable annotation rust">tokio</span>::<span class="variable annotation rust">main</span><span class="punctuation section group end rust">]</span></span>
+async <span class="meta function rust"><span class="meta function rust"><span class="storage type function rust">fn</span> </span><span class="entity name function rust">main</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters begin rust">(</span></span><span class="meta function rust"><span class="meta function parameters rust"><span class="punctuation section parameters end rust">)</span></span></span></span><span class="meta function rust"> <span class="meta function return-type rust"><span class="punctuation separator rust">-&gt;</span> <span class="meta generic rust">Result<span class="punctuation definition generic begin rust">&lt;</span><span class="punctuation section group begin rust">(</span><span class="punctuation section group end rust">)</span>, WebDriverError<span class="punctuation definition generic end rust">&gt;</span></span></span></span><span class="meta function rust"><span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+    <span class="storage type rust">let</span> url <span class="keyword operator rust">=</span> <span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>https://spa1.scrape.center/<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> caps <span class="keyword operator rust">=</span> <span class="meta path rust">DesiredCapabilities<span class="punctuation accessor rust">::</span></span>chrome<span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    
+    <span class="storage type rust">let</span> driver <span class="keyword operator rust">=</span> <span class="meta path rust">WebDriver<span class="punctuation accessor rust">::</span></span>new<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>http://localhost:9515<span class="punctuation definition string end rust">&quot;</span></span><span class="punctuation separator rust">,</span> caps</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    driver.<span class="support function rust">get</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span>url</span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="comment line double-slash rust"><span class="punctuation definition comment rust">//</span> 等待我们要的元素
+</span>    <span class="storage type rust">let</span> check <span class="keyword operator rust">=</span> driver.<span class="support function rust">query</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">By<span class="punctuation accessor rust">::</span></span>Css<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>.m-b-sm<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">first</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    check.<span class="support function rust">wait_until</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.<span class="support function rust">displayed</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="storage type rust">let</span> els <span class="keyword operator rust">=</span> driver.<span class="support function rust">find_elements</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta path rust">By<span class="punctuation accessor rust">::</span></span>Css<span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>.m-b-sm<span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="keyword control rust">for</span> el <span class="keyword operator rust">in</span> els <span class="meta block rust"><span class="punctuation section block begin rust">{</span>
+        <span class="support macro rust">println!</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="string quoted double rust"><span class="punctuation definition string begin rust">&quot;</span>el:<span class="constant other placeholder rust">{}</span><span class="punctuation definition string end rust">&quot;</span></span></span><span class="meta group rust"><span class="punctuation separator rust">,</span>el.<span class="support function rust">inner_html</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span>.<span class="support function rust">as_str</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span><span class="punctuation section group end rust">)</span></span><span class="punctuation terminator rust">;</span>
+    </span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span>
+    driver.<span class="support function rust">quit</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>.await<span class="keyword operator rust">?</span><span class="punctuation terminator rust">;</span>
+    <span class="support type rust">Ok</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span><span class="meta group rust"><span class="punctuation section group begin rust">(</span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span></span><span class="meta group rust"><span class="punctuation section group end rust">)</span></span>
+</span><span class="meta block rust"><span class="punctuation section block end rust">}</span></span></span>
+
+</span></code></pre>
+<p>运行结果</p>
+<pre><code class="language-bash"><span class="source shell bash"><span class="meta function-call shell"><span class="variable function shell">el:霸王别姬</span></span><span class="meta function-call arguments shell"> - Farewell My Concubine</span>
+<span class="meta function-call shell"><span class="variable function shell">el:这个杀手不太冷</span></span><span class="meta function-call arguments shell"> - Léon</span>
+<span class="meta function-call shell"><span class="variable function shell">el:肖申克的救赎</span></span><span class="meta function-call arguments shell"> - The Shawshank Redemption</span>
+<span class="meta function-call shell"><span class="variable function shell">el:泰坦尼克号</span></span><span class="meta function-call arguments shell"> - Titanic</span>
+<span class="meta function-call shell"><span class="variable function shell">el:罗马假日</span></span><span class="meta function-call arguments shell"> - Roman Holiday</span>
+<span class="meta function-call shell"><span class="variable function shell">el:唐伯虎点秋香</span></span><span class="meta function-call arguments shell"> - Flirting Scholar</span>
+<span class="meta function-call shell"><span class="variable function shell">el:乱世佳人</span></span><span class="meta function-call arguments shell"> - Gone with the Wind</span>
+<span class="meta function-call shell"><span class="variable function shell">el:喜剧之王</span></span><span class="meta function-call arguments shell"> - The King of Comedy</span>
+<span class="meta function-call shell"><span class="variable function shell">el:楚门的世界</span></span><span class="meta function-call arguments shell"> - The Truman Show</span>
+<span class="meta function-call shell"><span class="variable function shell">el:狮子王</span></span><span class="meta function-call arguments shell"> - The Lion King</span>
+</span></code></pre>
+<h2 id="简单总结">简单总结</h2>
+<ul>
+<li>支持爬虫操作的基础库基本都是涵盖的</li>
+<li>相关的示例代码或者教程还是缺少</li>
+<li>这次验证下来,还是可以满足我新系统设计的需求的,可以使用 rust 开发爬虫节点</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/run-wordpress-6-arturo-with-podman/" title="使用 Podman 运行 WordPress 6 Arturo">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">使用 Podman 运行 WordPress 6 Arturo</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/what-is-podman-and-different-from-kubernetes-and-docker/" title="选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

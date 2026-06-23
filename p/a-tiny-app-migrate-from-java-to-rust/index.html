@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh"
+  x-data
+  :class="$store.darkMode.class()"
+  :data-theme="$store.darkMode.theme()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>记录一次 java 小项目的 rust 迁移过程 | Liangdi&#x27;s Blog</title>
+
+  
+
+
+
+<link rel="canonical" href="https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/" />
+
+
+
+
+
+<meta name="author" content="Liangdi" />
+
+
+
+<link rel="stylesheet" href="/css/output.css" />
+
+
+
+
+  
+  
+  
+
+  
+
+<style>
+  pre {
+    padding: 1em;
+    overflow: auto;
+  }
+</style>
+
+
+
+  
+
+  
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // DevTools / external bridge: anycms DevTools flips dark mode by setting
+    // `data-theme="dark"|"light"` on <html> (the convention used by the ink/
+    // folio/manual themes). dream instead drives `data-theme` reactively via
+    // the Alpine `$store.darkMode` store (values: emerald/forest), so the
+    // DevTools attribute would be clobbered. This observer translates the
+    // external `dark`/`light` hint into a store toggle, letting DevTools (and
+    // any tool using the platform convention) control dream's mode. Safe from
+    // recursion: the store then sets emerald/forest, which are not dark/light,
+    // so the observer does not re-fire.
+    (function () {
+      var html = document.documentElement;
+      document.addEventListener('alpine:initialized', function () {
+        apply();
+        new MutationObserver(apply).observe(html, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      });
+      function apply() {
+        var t = html.getAttribute('data-theme');
+        if (t !== 'dark' && t !== 'light') return;
+        if (!window.Alpine) return;
+        var store = Alpine.store('darkMode');
+        if (!store) return;
+        var want = t === 'dark' ? 'y' : 'n';
+        if (store.on !== want) store.toggle(want);
+      }
+    })();
+  </script>
+</head>
+
+<body x-data="{ flip: false }">
+  
+  <div id="dream-global-bg"></div>
+
+  
+
+
+<nav class="mt-4 lg:mt-8 py-4">
+
+  <div class="container flex justify-between max-w-[65ch] mx-auto px-4 md:px-0">
+    <section class="flex items-center gap-4">
+      
+      <div>
+        <a href="https://liangdi.me" class="text-lg font-semibold cursor-pointer">
+          Liangdi&#x27;s Blog
+        </a>
+      </div>
+      
+    </section>
+
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="菜单">
+        <ion-icon name="menu" class="text-2xl"></ion-icon>
+      </div>
+      <ul class="dropdown-content menu w-36 bg-base-100 rounded-box z-[1] shadow-md">
+        <li><a href="/search/">搜索</a></li>
+        <li><a href="/archive/">归档</a></li>
+        <li><a href="/categories/">分类</a></li>
+        <li><a href="/tags/">标签</a></li>
+        <li><a href="/atom.xml">RSS</a></li>
+      </ul>
+    </div>
+
+    <section class="hidden sm:flex sm:items-center sm:gap-2 md:gap-4">
+      
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/search/" title="搜索">
+    <ion-icon class="group-hover:text-primary-content" name="search"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/atom.xml" title="RSS">
+    <ion-icon class="group-hover:text-primary-content" name="logo-rss"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/archive/" title="归档">
+    <ion-icon class="group-hover:text-primary-content" name="archive"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/categories/" title="分类">
+    <ion-icon class="group-hover:text-primary-content" name="grid"></ion-icon>
+  </a>
+  
+
+      
+  
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary" href="/tags/" title="标签">
+    <ion-icon class="group-hover:text-primary-content" name="pricetags"></ion-icon>
+  </a>
+  
+
+    </section>
+  </div>
+</nav>
+
+  <div class="flip-container" :class="{ 'flip-it': flip }">
+    <div class="flipper">
+      <div class="front">
+        <div class="container">
+          
+<div class="mt-4 px-4">
+  
+  <div class="relative" x-data="{ height: '' }" x-init="height = $el.scrollHeight + 'px'">
+  
+    
+    <div class="absolute right-0 lg:w-36 xl:w-48 hidden lg:block" :style="{ height }">
+      <nav class="toc text-sm" aria-label="目录">
+        
+        <div style="margin-left: 0px"><a href="#概述">概述</a></div>
+        
+        <div style="margin-left: 0px"><a href="#迁移准备">迁移准备</a></div>
+        
+        <div style="margin-left: 0px"><a href="#迁移说明">迁移说明</a></div>
+        
+        <div style="margin-left: 12px"><a href="#库和中间件迁移">库和中间件迁移</a></div>
+        
+        <div style="margin-left: 12px"><a href="#有没有坑">有没有坑?</a></div>
+        
+        <div style="margin-left: 0px"><a href="#迁移后的变化">迁移后的变化</a></div>
+        
+        <div style="margin-left: 12px"><a href="#程序尺寸">程序尺寸</a></div>
+        
+        <div style="margin-left: 12px"><a href="#性能">性能</a></div>
+        
+        <div style="margin-left: 0px"><a href="#思考">思考</a></div>
+        
+      </nav>
+    </div>
+    
+    <article class="mx-auto prose prose-quoteless dark:prose-invert" id="dream-single-post-main" itemscope itemtype="http://schema.org/Article">
+      <header>
+        <h1 itemprop="headline">记录一次 java 小项目的 rust 迁移过程</h1>
+        <p class="text-sm">
+          
+          <span data-format="luxon">2022-04-26T11:06:35+08:00</span>
+          
+        </p>
+        <div class="flex justify-between">
+          
+          
+
+
+
+
+
+<div class="flex items-center">
+  
+  <span>@</span>
+  
+
+  <span itemprop="author" itemscope itemtype="https://schema.org/Person">
+    
+      
+      <span itemprop="name">Liangdi</span>
+      
+    
+  </span>
+</div>
+          
+
+<div class="flex items-center gap-2">
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://x.com/intent/post?text=记录一次 java 小项目的 rust 迁移过程&url=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;a-tiny-app-migrate-from-java-to-rust&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 X">
+    <ion-icon class="group-hover:text-primary-content" name="logo-x"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://facebook.com/sharer/sharer.php?u=https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;a-tiny-app-migrate-from-java-to-rust&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 Facebook">
+    <ion-icon class="group-hover:text-primary-content" name="logo-facebook"></ion-icon>
+  </a>
+  <a class="group inline-flex items-center p-2 rounded-full cursor-pointer hover:bg-primary"
+    href="https://wa.me/?text=记录一次 java 小项目的 rust 迁移过程 https:&#x2f;&#x2f;liangdi.me&#x2f;p&#x2f;a-tiny-app-migrate-from-java-to-rust&#x2f;" target="_blank" rel="noopener noreferrer" title="分享到 WhatsApp">
+    <ion-icon class="group-hover:text-primary-content" name="logo-whatsapp"></ion-icon>
+  </a>
+</div>
+        </div>
+      </header>
+
+      
+
+      <h2 id="概述">概述</h2>
+<p>使用 rust 也挺长时间了,但是一直是内部小打小闹,没有往客户那边推, 这次和客户商量好,拿一个很小的 java spring boot 项目开刀.</p>
+<p>这个项目小到 tiny 级别, 主要功能是: 请求一个服务, 对数据进行业务逻辑处理后, 使用 freemarker 渲染呈现给终端用户, rest api 也就 10 多个.</p>
+<h2 id="迁移准备">迁移准备</h2>
+<p>首先,业务逻辑使用 rust 实现,肯定是没有大问题, 关键在于一些中间件和第三方库是否有替代,这样可以让运维或者交付更加平滑一点, 由于项目比较简单,第三方库也很通用,基本在 rust 这边也有对等的选择,所以本次迁移也将会简单很多.</p>
+<h2 id="迁移说明">迁移说明</h2>
+<h3 id="库和中间件迁移">库和中间件迁移</h3>
+<table><thead><tr><th>库/中间件</th><th>Rust 版本</th><th>Java 版本</th><th>备注</th></tr></thead><tbody>
+<tr><th>Web Framework</th><th>actix-web 4</th><th>Spring Boot 2.6.x</th><th></th></tr>
+<tr><th>http cleint</th><th>reqwest</th><th>jdk 11 HttpClient</th><th></th></tr>
+<tr><th>json</th><th>serde_json</th><th>gson</th><th></th></tr>
+<tr><th>template</th><th>tera</th><th>freemarker</th><th></th></tr>
+<tr><th>logging</th><th>log4rs</th><th>spring boot logging</th><th></th></tr>
+<tr><th>assets embedded</th><th>rust-embed</th><th>spring boot static</th><th></th></tr>
+<tr><th>配置</th><th>dotenv</th><th>spring boot</th><th>项目小, 配置需求不高, dotenv 够用</th></tr>
+</tbody></table>
+<h3 id="有没有坑">有没有坑?</h3>
+<ul>
+<li>由于项目实在不复杂, 过程中也没有遇到特别的问题, rust 的库也能正常工作, 从代码的角度很多时候比 java 简洁, 当然集成没有 spring boot 那么简单, 比如配置的自动读取赋值, 模板需要手动集成等等.</li>
+<li>spring boot 的 rest request 配置, 对应在 actix-web 中也是很简单,使用 #[get], #[post] 等宏实现, 请求内容的解构也一样完善, 迁移过程中没有遇到什么问题.</li>
+<li>模板方面, <code>tera</code> 是 <code>Jinja2/Django</code> like 的所以,使用起来也没有什么障碍.</li>
+<li>战胜 rust 编译器后,程序运行,完成测试没有遇到什么 bug !</li>
+</ul>
+<h2 id="迁移后的变化">迁移后的变化</h2>
+<h3 id="程序尺寸">程序尺寸</h3>
+<ul>
+<li>spring boot jar 大小 20MB, 即使是 spring-native 打包也要 60 多 mb, 并且 spring-native 打包的程序没法正常运行,因为 spring-native 还没有 GA ,所以也没有去深究.</li>
+<li>rust 的程序使用 <code>x86_64-unknown-linux-musl</code> target release 静态编译打包(默认配置,无其他优化), 程序 strip 后是 9.3MB , 相比 jar 也小了一半, 还没考虑 jdk.</li>
+<li>容器化, 这点 rust 的优势就体现出来了, 使用 <code>FROM scratch</code> 打包出来的镜像大小是 9.75MB , 相比 spring boot 项目, 基本的 openjdk:17-alpine 就有 320 多 MB 加上项目程序,也要 340 多 MB 了.</li>
+</ul>
+<h3 id="性能">性能</h3>
+<ul>
+<li>肉眼可见的启动块了, 模板渲染也快了</li>
+<li>程序瓶颈在于远程的服务,所以当前程序性能测试并不一定可靠,所以并没有去做特别的测试</li>
+<li>后续迁移更多项目后,再进行一次性能测试比较</li>
+</ul>
+<h2 id="思考">思考</h2>
+<ul>
+<li>如果项目不复杂, java 迁移到 rust 还是不算复杂的.</li>
+<li>容器化的收益是不小的,不管是启动速度还是镜像大小.</li>
+<li>后面考虑将微服务化的 java 项目选择合适的项目再进行 rust 迁移.</li>
+</ul>
+
+
+      
+      <div class="divider"></div>
+      <div class="flex flex-col md:flex-row justify-between gap-4 py-4">
+        
+        
+        <a class="group btn btn-outline" href="/p/what-is-podman-and-different-from-kubernetes-and-docker/" title="选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别">
+          <ion-icon name="chevron-back"></ion-icon>
+          <div class="inline-flex flex-col items-start">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">上一篇</span>
+            <span class="max-w-48 truncate">选择 podman 的理由, 以及它和 Kubernetes , Docker 的区别</span>
+          </div>
+        </a>
+        
+
+        
+        <a class="group btn btn-outline" href="/p/progressive-cloud-native-with-podman/" title="渐进式云原生实践: 使用 podman 容器化你的应用">
+          <div class="inline-flex flex-col items-end">
+            <span class="text-base-content/60 group-hover:text-neutral-content/60 text-xs font-normal">下一篇</span>
+            <span class="max-w-48 truncate">渐进式云原生实践: 使用 podman 容器化你的应用</span>
+          </div>
+          <ion-icon name="chevron-forward"></ion-icon>
+        </a>
+        
+      </div>
+      
+    </article>
+  </div>
+</div>
+
+
+          <footer class="flex justify-between items-center gap-2 max-w-[65ch] mx-auto px-4 md:px-0 py-12">
+            <div>
+  
+  <p>© 2016 - 2026 Liangdi&#x27;s Blog</p>
+  
+
+  
+  <p>谦和之静,厚积薄发</p>
+  
+</div>
+            
+<div
+  x-data="{ icons: [
+    { name: 'moon', status: 'y' },
+    { name: 'sunny', status: 'n' },
+    { name: 'desktop', status: 'auto' }
+  ] }"
+  class="flex items-center h-[32px] px-2 gap-2 border border-base-content/30 rounded-full"
+>
+  <template x-for="icon in icons">
+    <div
+      role="button"
+      tabindex="0"
+      :aria-label="'Select ' + icon.name + ' mode'"
+      class="group inline-flex justify-center items-center p-1 rounded-full cursor-pointer hover:bg-primary"
+      :class="$store.darkMode.icon() === icon.name && 'bg-primary'"
+      @click="$store.darkMode.toggle(icon.status)"
+    >
+      <ion-icon
+        :name="`${icon.name}-outline`"
+        class="group-hover:text-primary-content"
+        :class="$store.darkMode.icon() === icon.name && 'text-primary-content'"
+      >
+      </ion-icon>
+    </div>
+  </template>
+</div>
+          </footer>
+        </div>
+      </div>
+      <div class="back">
+        <div class="container">
+          
+          
+<div class="max-w-[65ch] mt-8 mx-auto px-4">
+  <div>
+    <div class="mb-4 text-lg font-medium">关于</div>
+    <div class="prose dark:prose-invert">
+      <p>Liangdi</p>
+      <p class="text-base-content/60">关注开源技术.</p>
+    </div>
+  </div>
+
+  
+  <div class="divider divider-vertical"></div>
+  <div class="pb-4">
+    <div class="mb-4 text-lg font-medium">社交链接</div>
+    
+<ul class="menu menu-horizontal flex-wrap w-full px-0 [&_ion-icon]:text-lg">
+  
+  
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+    <li>
+      <a href="" target="_blank" rel="noopener noreferrer" title="">
+        <ion-icon name="logo-"></ion-icon>
+      </a>
+    </li>
+    
+  
+</ul>
+  </div>
+  
+</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script>
+  window.lightTheme = "emerald"
+  window.darkTheme = "forest"
+</script>
+
+
+
+
+<script src="/js/main.js"></script>
+  
+
+
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.26.0" crossorigin="anonymous"></script>
+<script>
+  format()
+
+  function format() {
+    document.querySelectorAll('span[data-format="luxon"]').forEach(el => {
+      const date = el.textContent
+      el.textContent = luxon.DateTime.fromISO(date, { locale: "zh" }).toFormat("yyyy年MM月dd日")
+    })
+  }
+</script>
+
+
+
+  
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.1.0/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+
+  
+
+  
+  <script type="module" src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.4.0/dist/ionicons/ionicons.js"></script>
+
+  
+</body>
+</html>

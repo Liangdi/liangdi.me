@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+
+  <url><loc>https://liangdi.me/search/</loc></url>
+
+  <url><loc>https://liangdi.me/p/rust-hacking-programing-icmp-ping/</loc><lastmod>2022-06-02T19:30:20+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/what-is-podman-and-different-from-kubernetes-and-docker/</loc><lastmod>2022-04-27T16:30:35+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/about/</loc></url>
+
+  <url><loc>https://liangdi.me/p/progressive-cloud-native-with-podman/</loc><lastmod>2022-04-23T16:59:14+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/simple-rust-crawler-technology-research/</loc><lastmod>2022-05-06T00:38:25+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/rust-project-review-zellij/</loc><lastmod>2023-01-23T21:44:12+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/run-wordpress-6-arturo-with-podman/</loc><lastmod>2022-06-02T12:37:58+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/a-tiny-app-migrate-from-java-to-rust/</loc><lastmod>2022-04-26T11:06:35+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/p/2023-rust-web-frameworks/</loc><lastmod>2023-01-28T01:33:57+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/</loc></url>
+
+  <url><loc>https://liangdi.me/p/rust-hacking-programing-syn-flood-ddos/</loc><lastmod>2022-06-03T16:01:32+08:00</lastmod></url>
+
+  <url><loc>https://liangdi.me/tags/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/webdriver/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/cli/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/ddos/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/docker/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/hacking-programing/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/icmp/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/java/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/k8s/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/kubernetes/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/podman/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/rust/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/syn-flood/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/web/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/wordpress/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/zellij/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/云原生/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/容器化/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/容器技术/</loc></url>
+
+  <url><loc>https://liangdi.me/tags/爬虫/</loc></url>
+
+  <url><loc>https://liangdi.me/categories/</loc></url>
+
+  <url><loc>https://liangdi.me/archive/</loc></url>
+
+</urlset>
